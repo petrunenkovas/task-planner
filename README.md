@@ -6,7 +6,7 @@ Built as a portfolio project for managing tasks, deadlines, and priorities. Task
 
 ## Preview
 
-[Live demo]()
+[Live demo](https://petrunenkovas.github.io/task-planner/)
 
 <p align="center">
   <img src="docs/screenshots/task-list.png" alt="Task list" width="32%">
