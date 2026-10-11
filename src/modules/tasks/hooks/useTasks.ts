@@ -18,9 +18,9 @@ export function useTasks() {
     const query = useQuery(taskQuery());
     const [status, dispatch] = useReducer(mutationStatusReducer, INITIAL_MUTATION_STATUS);
     const [reloadCount, setReloadCount] = useState(0);
-    const message = status.notice?.text ?? '';
-    const setMessage = (text: string) =>
-        dispatch(text ? { type: 'error', text } : { type: 'dismiss' });
+    const message = status.notice?.text ?? null;
+    const setMessage = (text: string | null) =>
+        dispatch(text !== null && text !== '' ? { type: 'error', text } : { type: 'dismiss' });
 
     useEffect(() => {
         if (status.notice?.kind !== 'success' || status.pending > 0) {

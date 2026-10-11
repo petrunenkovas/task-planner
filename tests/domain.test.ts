@@ -63,7 +63,7 @@ test('selected statuses and priorities use OR within each group and AND across g
         ...EMPTY_FILTERS,
         status: ['done', 'planned'] as Task['status'][],
         priority: ['high', 'normal'] as Task['priority'][],
-        urgent: 'yes',
+        urgent: 'yes' as const,
     };
 
     assert.equal(matchesFilters(task, selected), true);
@@ -86,13 +86,16 @@ test('filter URL accepts old singular values, removes unknowns and duplicates, a
         q: 'релиз',
         status: ['planned', 'done'],
         priority: ['low', 'high'],
-        urgent: '',
+        urgent: null,
     });
     assert.equal(
         taskFiltersToSearch(selected).toString(),
         'q=%D1%80%D0%B5%D0%BB%D0%B8%D0%B7&status=planned&status=done&priority=low&priority=high',
     );
     assert.equal(taskFiltersToSearch(EMPTY_FILTERS).toString(), '');
+    assert.equal(taskFiltersFromSearch('?urgent=yes').urgent, 'yes');
+    assert.equal(taskFiltersFromSearch('?urgent=no').urgent, 'no');
+    assert.equal(taskFiltersToSearch({ ...EMPTY_FILTERS, urgent: 'yes' }).toString(), 'urgent=yes');
 });
 
 test('removed period URL parameters cannot silently hide tasks', () => {

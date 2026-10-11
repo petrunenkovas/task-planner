@@ -17,7 +17,7 @@ export function TaskFilters({ tasks, filters, onChange, settings }: Props) {
     const activeGroups =
         Number(filters.status.length > 0) +
         Number(filters.priority.length > 0) +
-        Number(filters.urgent !== '');
+        Number(filters.urgent !== null);
     return (
         <div className="filter-bar">
             <div className="search-field">

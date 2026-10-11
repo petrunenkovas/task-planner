@@ -6,6 +6,7 @@ import type { Task } from '../src/lib/task';
 import { EMPTY_FILTERS } from '../src/lib/taskFilters';
 import { FieldChooser } from '../src/components/ui/FieldChooser';
 import { TaskFilters } from '../src/modules/tasks/components/TaskFilters';
+import { FilterDialog } from '../src/modules/tasks/components/FilterDialog';
 import { TaskList } from '../src/modules/tasks/components/TaskList';
 
 const task: Task = {
@@ -65,4 +66,18 @@ test('filter bar keeps filter dialog trigger, search clear and view settings', (
     assert.match(html, /Выбрать все/);
     assert.match(html, /Сбросить все/);
     assert.doesNotMatch(html, /aria-label="Сбросить"/);
+});
+
+test('empty urgency filter keeps the any-urgency placeholder', () => {
+    const html = renderToStaticMarkup(
+        createElement(FilterDialog, {
+            filters: EMPTY_FILTERS,
+            tasks: [task],
+            returnFocus: null,
+            onClose: () => undefined,
+            onApply: () => undefined,
+        }),
+    );
+
+    assert.match(html, /aria-label="Срочность: Любая срочность"/);
 });

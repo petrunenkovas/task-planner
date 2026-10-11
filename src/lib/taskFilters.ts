@@ -4,14 +4,14 @@ export type Filters = {
     q: string;
     status: Status[];
     priority: Priority[];
-    urgent: string;
+    urgent: 'yes' | 'no' | null;
 };
 
 export const EMPTY_FILTERS: Filters = {
     q: '',
     status: [],
     priority: [],
-    urgent: '',
+    urgent: null,
 };
 
 export function matchesFilters(task: Task, filters: Filters): boolean {
@@ -21,7 +21,8 @@ export function matchesFilters(task: Task, filters: Filters): boolean {
     const isMatchingStatus = filters.status.length === 0 || filters.status.includes(task.status);
     const isMatchingPriority =
         filters.priority.length === 0 || filters.priority.includes(task.priority);
-    const isMatchingUrgency = filters.urgent === '' || task.isUrgent === (filters.urgent === 'yes');
+    const isMatchingUrgency =
+        filters.urgent === null || task.isUrgent === (filters.urgent === 'yes');
 
     return isMatchingQuery && isMatchingStatus && isMatchingPriority && isMatchingUrgency;
 }
@@ -29,13 +30,13 @@ export function matchesFilters(task: Task, filters: Filters): boolean {
 export function taskFiltersFromSearch(search: string): Filters {
     const params = new URLSearchParams(search);
 
+    const urgent = params.get('urgent');
+
     return {
         q: params.get('q') ?? '',
         status: STATUSES.filter((status) => params.getAll('status').includes(status)),
         priority: PRIORITIES.filter((priority) => params.getAll('priority').includes(priority)),
-        urgent: ['yes', 'no'].includes(params.get('urgent') ?? '')
-            ? (params.get('urgent') ?? '')
-            : '',
+        urgent: urgent === 'yes' || urgent === 'no' ? urgent : null,
     };
 }
 

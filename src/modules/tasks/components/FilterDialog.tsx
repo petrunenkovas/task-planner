@@ -13,7 +13,7 @@ const statusOptions: DropdownOption<Selection['status'][number]>[] = [
 const priorityOptions: DropdownOption<Selection['priority'][number]>[] = [
     ...PRIORITIES.map((value) => ({ value, label: PRIORITY_LABELS[value] })),
 ];
-const URGENT_OPTIONS: DropdownOption[] = [
+const URGENT_OPTIONS: DropdownOption<'yes' | 'no' | ''>[] = [
     { value: 'yes', label: 'Срочные' },
     { value: 'no', label: 'Не срочные' },
 ];
@@ -132,8 +132,13 @@ export function FilterDialog({ filters, tasks, returnFocus, onClose, onApply }: 
                         label="Срочность"
                         placeholder="Любая срочность"
                         options={URGENT_OPTIONS}
-                        value={draft.urgent}
-                        onChange={(urgent) => setDraft((current) => ({ ...current, urgent }))}
+                        value={draft.urgent ?? ''}
+                        onChange={(urgent) =>
+                            setDraft((current) => ({
+                                ...current,
+                                urgent: urgent === '' ? null : urgent,
+                            }))
+                        }
                     />
                 </div>
             </div>
@@ -141,7 +146,7 @@ export function FilterDialog({ filters, tasks, returnFocus, onClose, onApply }: 
                 <button
                     type="button"
                     className="filter-clear-button"
-                    onClick={() => setDraft({ status: [], priority: [], urgent: '' })}
+                    onClick={() => setDraft({ status: [], priority: [], urgent: null })}
                 >
                     Очистить фильтры
                 </button>

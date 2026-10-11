@@ -16,7 +16,7 @@ import {
     GANTT_SCALE_HEIGHT,
 } from '../model/config';
 import { GANTT_COLUMN_FIELDS, toGanttTask } from '../model/helpers';
-import { taskColumnWidth, taskGridLayout } from '../model/gridLayout';
+import { taskColumnWidth, taskGridLayout, type GridLayoutMode } from '../model/gridLayout';
 import { createPortal } from 'react-dom';
 import { upperHeaderSegments, type HeaderSegment } from '../model/timelineHeader';
 import type { TaskColumnId } from '../../../lib/taskFields';
@@ -106,6 +106,11 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
         () => window.matchMedia(GANTT_COMPACT_MEDIA).matches,
     );
     const [isGridHidden, setIsGridHidden] = useState(false);
+    const columnMode = isCompact ? 'compact' : 'regular';
+    let layoutMode: GridLayoutMode = columnMode;
+    if (isCompact && isGridHidden) {
+        layoutMode = 'chart-only';
+    }
     useEffect(() => {
         const media = window.matchMedia(GANTT_COMPACT_MEDIA);
         const update = () => setIsCompact(media.matches);
@@ -152,7 +157,7 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
                     return {
                         id: 'text',
                         header,
-                        width: taskColumnWidth(id, { isCompact }),
+                        width: taskColumnWidth(id, columnMode),
                         resize: false,
                         cell: ({ row }) => (
                             <button
@@ -172,7 +177,7 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
                 return {
                     id: field,
                     header,
-                    width: taskColumnWidth(id, { isCompact }),
+                    width: taskColumnWidth(id, columnMode),
                     resize: false,
                     cell: ({ row }) => (
                         <span className="chart-column-value" title={String(row[field] ?? '')}>
@@ -181,12 +186,9 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
                     ),
                 };
             }),
-        [isCompact, props.selectedColumns, props.sort, sortColumn],
+        [columnMode, props.selectedColumns, props.sort, sortColumn],
     );
-    const { gridWidth, minimumWidth } = taskGridLayout(props.selectedColumns, {
-        isCompact,
-        isHidden: isCompact && isGridHidden,
-    });
+    const { gridWidth, minimumWidth } = taskGridLayout(props.selectedColumns, layoutMode);
     const bounds = useMemo(() => timelineRange(props.tasks, props.mode), [props.tasks, props.mode]);
     const cellWidth = GANTT_CELL_WIDTHS[props.mode];
     configureHourFrame(bounds.start);
@@ -485,16 +487,18 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
         }
 
         const task = (event.target as Element).closest<HTMLElement>('[data-task-id]');
-        pointerIntent.current =
-            task !== null
-                ? {
-                      id: task.dataset.taskId ?? '',
-                      x: event.clientX,
-                      y: event.clientY,
-                      pointerId: event.pointerId,
-                      hasMoved: false,
-                  }
-                : null;
+        const id = task?.dataset.taskId;
+        if (id === undefined || id === '') {
+            pointerIntent.current = null;
+            return;
+        }
+        pointerIntent.current = {
+            id,
+            x: event.clientX,
+            y: event.clientY,
+            pointerId: event.pointerId,
+            hasMoved: false,
+        };
     };
 
     const captureTaskPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {

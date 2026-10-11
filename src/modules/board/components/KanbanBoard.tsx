@@ -54,7 +54,7 @@ export function KanbanBoard({
     const captured = useRef<KanbanDragTask | null>(null);
     const initiator = useRef<HTMLElement | null>(null);
     const focusTarget = useRef<HTMLDivElement>(null);
-    const [announcement, setAnnouncement] = useState('');
+    const [announcement, setAnnouncement] = useState<string | null>(null);
     const [preview, setPreview] = useState<{
         taskId: string;
         width: number;

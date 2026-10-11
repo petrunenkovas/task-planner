@@ -33,7 +33,7 @@ type Props = {
     fallbackFocus: (() => HTMLElement | null) | null;
     isBusy: boolean;
     isReloading: boolean;
-    error: string;
+    error: string | null;
     onClose: () => void;
     onSave: (task: TaskInput) => Promise<void>;
     onDelete: () => Promise<void>;
@@ -54,7 +54,7 @@ export function TaskForm({
 }: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     const [formZone] = useState(systemTimeZone);
-    const [validation, setValidation] = useState('');
+    const [validation, setValidation] = useState<string | null>(null);
     const [fields, setFields] = useState<FieldErrors>({});
     const [status, setStatus] = useState<Status>(task?.status ?? 'planned');
     const [priority, setPriority] = useState<Priority>(task?.priority ?? 'normal');
@@ -84,7 +84,7 @@ export function TaskForm({
 
     async function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setValidation('');
+        setValidation(null);
         setFields({});
 
         const element = event.currentTarget;
@@ -115,9 +115,13 @@ export function TaskForm({
                         element.querySelector<HTMLElement>(`[name="${first}"]`);
                     invalidField?.focus();
                 }
-                setValidation(first !== undefined && first !== '' ? '' : 'Проверьте данные');
+                setValidation(first !== undefined && first !== '' ? null : 'Проверьте данные');
             } else {
-                setValidation(issue instanceof Error ? issue.message : 'Проверьте данные');
+                let validationMessage: string | null = 'Проверьте данные';
+                if (issue instanceof Error) {
+                    validationMessage = issue.message === '' ? null : issue.message;
+                }
+                setValidation(validationMessage);
             }
         }
     }
@@ -304,9 +308,9 @@ export function TaskForm({
                     />
                     Срочная задача
                 </label>
-                {(validation !== '' || error !== '') && (
+                {(validation !== null || error !== null) && (
                     <p role="alert" className="form-error">
-                        {validation !== '' ? validation : error}
+                        {validation ?? error}
                     </p>
                 )}
                 {onReload !== null && (

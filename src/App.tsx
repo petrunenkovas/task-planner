@@ -111,7 +111,7 @@ export function App() {
     const [editor, setEditor] = useState<Task | 'new' | null>(null);
     const editorInitiator = useRef<HTMLElement | null>(null);
     const editorFocusFallback = useRef<(() => HTMLElement | null) | null>(null);
-    const [formError, setFormError] = useState('');
+    const [formError, setFormError] = useState<string | null>(null);
     const [hasFormConflict, setHasFormConflict] = useState(false);
     const [timezone, setTimezone] = useState(systemTimeZone);
 
@@ -154,6 +154,13 @@ export function App() {
         setSearchParams(taskFiltersToSearch(updated), { replace: true });
     }
 
+    function formErrorMessage(error: unknown, fallback: string): string | null {
+        if (error instanceof Error) {
+            return error.message === '' ? null : error.message;
+        }
+        return fallback;
+    }
+
     function openEditor(task: Task | 'new', initiator: HTMLElement | null = null) {
         editorInitiator.current =
             initiator ??
@@ -171,13 +178,13 @@ export function App() {
                       return title ?? (board.isConnected ? board : null);
                   }
                 : null;
-        setFormError('');
+        setFormError(null);
         setHasFormConflict(false);
         setEditor(task);
     }
 
     async function saveForm(input: TaskInput) {
-        setFormError('');
+        setFormError(null);
         try {
             if (editor !== null && editor !== 'new') {
                 await updateTask(editor.id, input, editor.version);
@@ -187,7 +194,7 @@ export function App() {
 
             setEditor(null);
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : 'Не удалось сохранить');
+            setFormError(formErrorMessage(error, 'Не удалось сохранить'));
             setHasFormConflict(error instanceof TaskRepositoryError && error.status === 409);
         }
     }
@@ -196,13 +203,13 @@ export function App() {
         if (editor === null || editor === 'new') {
             return;
         }
-        setFormError('');
+        setFormError(null);
 
         try {
             await removeTask(editor);
             setEditor(null);
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : 'Не удалось удалить');
+            setFormError(formErrorMessage(error, 'Не удалось удалить'));
             setHasFormConflict(error instanceof TaskRepositoryError && error.status === 409);
         }
     }
@@ -215,13 +222,13 @@ export function App() {
             const current = await reloadTasks();
             const actual = current.find((task) => task.id === editor.id);
             setEditor(actual ?? null);
-            setFormError('');
+            setFormError(null);
             setHasFormConflict(false);
             if (actual === undefined) {
                 setMessage('Задача уже удалена');
             }
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : 'Не удалось обновить');
+            setFormError(formErrorMessage(error, 'Не удалось обновить'));
         }
     }
 
@@ -328,7 +335,7 @@ export function App() {
         );
     }
 
-    let saveState = '';
+    let saveState: string | null = null;
     if (isPending) {
         saveState = 'Сохранение…';
     } else if (query.isFetching || isReloading) {
@@ -439,13 +446,13 @@ export function App() {
                         </Routes>
                     </div>
                 </section>
-                {message !== '' && (
+                {message !== null && (
                     <div
                         className={`toast ${noticeKind ?? 'error'}`}
                         role={noticeKind === 'error' ? 'alert' : 'status'}
                     >
                         <span>{message}</span>
-                        <button aria-label="Закрыть уведомление" onClick={() => setMessage('')}>
+                        <button aria-label="Закрыть уведомление" onClick={() => setMessage(null)}>
                             ×
                         </button>
                     </div>
