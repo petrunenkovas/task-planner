@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Task } from '../src/lib/task';
 import { nextTaskSort, sortTasks, visibleTaskSort } from '../src/lib/taskSort';
 import { SortableHeader, sortAriaValue } from '../src/components/ui/SortableHeader';
-import { TaskList } from '../src/modules/tasks/components/TaskList';
+import { TaskList } from '../src/modules/list/components/TaskList';
 
 const base: Task = {
     id: 'base',
@@ -131,7 +131,12 @@ test('all statuses and priorities follow the domain order', () => {
 test('header exposes current direction and next action', () => {
     const active = { column: 'title', direction: 'asc' } as const;
     const html = renderToStaticMarkup(
-        createElement(SortableHeader, { column: 'title', sort: active, onSort: () => undefined }),
+        createElement(SortableHeader, {
+            column: 'title',
+            label: 'Название',
+            sort: active,
+            onSort: () => undefined,
+        }),
     );
     assert.match(html, /class="sort-header is-asc"/);
     assert.match(html, /data-sort-column="title"/);

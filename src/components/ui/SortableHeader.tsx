@@ -1,22 +1,32 @@
-import { TASK_COLUMN_LABELS, type TaskColumnId } from '../../lib/taskFields';
-import type { TaskSort } from '../../lib/taskSort';
-
-type Props = {
-    column: TaskColumnId;
-    sort: TaskSort | null;
-    onSort: (column: TaskColumnId) => void;
+type SortState<Column extends string> = {
+    column: Column;
+    direction: 'asc' | 'desc';
 };
 
-export function sortAriaValue(sort: TaskSort | null, column: TaskColumnId) {
+type Props<Column extends string> = {
+    column: Column;
+    label: string;
+    sort: SortState<Column> | null;
+    onSort: (column: Column) => void;
+};
+
+export function sortAriaValue<Column extends string>(
+    sort: SortState<Column> | null,
+    column: Column,
+) {
     if (sort?.column !== column) {
         return 'none' as const;
     }
     return sort.direction === 'asc' ? ('ascending' as const) : ('descending' as const);
 }
 
-export function SortableHeader({ column, sort, onSort }: Props) {
+export function SortableHeader<Column extends string>({
+    column,
+    label,
+    sort,
+    onSort,
+}: Props<Column>) {
     const direction = sort?.column === column ? sort.direction : null;
-    const label = TASK_COLUMN_LABELS[column];
     let sortDescription = 'сортировать по возрастанию';
     if (direction === 'asc') {
         sortDescription = 'по возрастанию, нажмите для сортировки по убыванию';

@@ -1,0 +1,121 @@
+.chart-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px 10px;
+    border-bottom: 1px solid #dce2ec;
+}
+.gantt-wrap {
+    position: relative;
+    height: 100%;
+    min-height: 240px;
+    overflow: hidden;
+}
+.gantt-wrap > .wx-willow-theme {
+    height: 100%;
+}
+.gantt-wrap > .wx-willow-theme > .wx-willow-theme {
+    height: 100%;
+    min-height: 0;
+}
+.gantt-wrap .wx-willow-theme {
+    --wx-font-size: 14px;
+    --wx-gantt-task-color: #245edb;
+    --wx-gantt-task-fill-color: #245edb;
+    --wx-gantt-task-font-color: #ffffff;
+}
+.gantt-wrap .wx-link,
+.gantt-wrap .wx-progress-marker {
+    display: none;
+}
+/* Keep short tasks reachable without changing their stored duration or geometry. */
+.gantt-wrap .wx-bar.wx-task {
+    min-width: 24px;
+}
+.task-bar-content {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    width: 100%;
+    font-size: 14px;
+}
+.task-bar-content > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.task-bar-content.completed {
+    text-decoration: line-through;
+}
+.grid-toggle {
+    border: 1px solid #aeb9ca;
+    border-radius: 7px;
+    background: white;
+    color: #174da9;
+    padding: 8px 12px;
+    margin: 2px 8px;
+}
+.gantt-wrap.has-grid-toggle > .wx-willow-theme {
+    height: calc(100% - 44px);
+}
+.gantt-wrap .sort-header {
+    min-height: 0;
+    height: 100%;
+    padding: 8px;
+}
+.gantt-wrap .wx-table .wx-grid .wx-header .wx-cell[role='columnheader']:has(.sort-column-header) {
+    padding: 0;
+}
+.timeline-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    width: 100%;
+}
+.timeline-scale {
+    width: 160px;
+    flex: 0 0 auto;
+}
+.chart-column-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+.calendar-upper-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 42px;
+    background: white;
+    pointer-events: none;
+    z-index: 4;
+}
+.calendar-header-cell {
+    position: absolute;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #d4dce8;
+    border-bottom: 1px solid #d4dce8;
+    overflow: hidden;
+    white-space: nowrap;
+    color: #43536b;
+}
+
+/* Column widths are fixed; retain the native separator without resizing. */
+.gantt-wrap .wx-resizer {
+    pointer-events: none;
+}
+
+@media (max-width: 700px) {
+    .chart-controls {
+        flex-wrap: wrap;
+        padding: 0 8px 8px;
+        gap: 4px;
+    }
+}

@@ -80,7 +80,12 @@ export function TaskList({ tasks, columns, isPending, onEdit, sort, onSort }: Pr
                     <tr>
                         {columns.map((id) => (
                             <th key={id} aria-sort={sortAriaValue(sort, id)}>
-                                <SortableHeader column={id} sort={sort} onSort={onSort} />
+                                <SortableHeader
+                                    column={id}
+                                    label={TASK_COLUMN_LABELS[id]}
+                                    sort={sort}
+                                    onSort={onSort}
+                                />
                             </th>
                         ))}
                         <th aria-label="Действия" />

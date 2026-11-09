@@ -19,7 +19,7 @@ import { GANTT_COLUMN_FIELDS, toGanttTask } from '../model/helpers';
 import { taskColumnWidth, taskGridLayout, type GridLayoutMode } from '../model/gridLayout';
 import { createPortal } from 'react-dom';
 import { upperHeaderSegments, type HeaderSegment } from '../model/timelineHeader';
-import type { TaskColumnId } from '../../../lib/taskFields';
+import { TASK_COLUMN_LABELS, type TaskColumnId } from '../../../lib/taskFields';
 import { Locale } from '@svar-ui/react-core';
 import { ru } from '@svar-ui/core-locales';
 import '@svar-ui/react-gantt/all.css';
@@ -66,7 +66,12 @@ function GanttHeaderCell({
 
     return (
         <div ref={container} className="sort-column-header">
-            <SortableHeader column={column} sort={sort} onSort={onSort} />
+            <SortableHeader
+                column={column}
+                label={TASK_COLUMN_LABELS[column]}
+                sort={sort}
+                onSort={onSort}
+            />
         </div>
     );
 }

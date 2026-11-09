@@ -1,0 +1,109 @@
+.kanban-workspace {
+    min-width: 0;
+    padding: 12px;
+}
+.kanban-board {
+    display: grid;
+    gap: 12px;
+    width: max-content;
+    align-items: stretch;
+}
+.kanban-column {
+    background: var(--kanban-surface);
+    border: 1px solid var(--kanban-accent);
+    border-radius: 8px;
+    min-height: 240px;
+}
+.kanban-column h3 {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--kanban-surface);
+    color: var(--kanban-text);
+    margin: 0;
+    border-radius: 8px 8px 0 0;
+    padding: 12px;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid #d4dce8;
+}
+.kanban-column h3 span {
+    color: var(--kanban-text);
+}
+.kanban-column-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+}
+.kanban-card {
+    padding: 12px;
+    border: 1px solid #c7d1df;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 1px 3px #1621350d;
+}
+.kanban-card.dragging {
+    opacity: 0.65;
+}
+.kanban-card-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.kanban-card .task-title-button {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+.kanban-card-description {
+    margin: 8px 0 0;
+    color: #50617a;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+.kanban-drag-handle {
+    background: #f0f3f8;
+    color: #43536b;
+    border-radius: 6px;
+    min-width: 40px;
+    font-size: 22px;
+    touch-action: none;
+    cursor: grab;
+}
+
+.kanban-card-tags {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: #43536b;
+    font-size: 13px;
+}
+.kanban-urgent {
+    color: #805000;
+    background: #fff1c9;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+.kanban-empty-column {
+    text-align: center;
+    color: #50617a;
+    margin: 20px 0;
+}
+.kanban-empty-hint {
+    margin-bottom: 12px;
+    color: #43536b;
+}
+
+.kanban-ghost {
+    flex: none;
+    background: var(--kanban-surface);
+    border: 2px dashed var(--kanban-accent);
+    border-radius: 8px;
+    opacity: 0.5;
+    pointer-events: none;
+}
