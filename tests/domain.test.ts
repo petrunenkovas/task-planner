@@ -13,9 +13,10 @@ const task: Task = {
     description: 'Проверить доступность',
     start: '2026-10-25T00:00:00.000Z',
     end: '2026-10-25T03:00:00.000Z',
-    status: 'planned',
+    status: 'new',
     priority: 'normal',
     isUrgent: true,
+    parent_id: null,
     version: 1,
     createdAt: '',
     updatedAt: '',
@@ -28,6 +29,7 @@ const input = {
     status: task.status,
     priority: task.priority,
     isUrgent: task.isUrgent,
+    parent_id: task.parent_id,
 };
 test('task validates duration, titles and enum values', () => {
     assert.equal(taskInputSchema.safeParse(input).success, true);
@@ -53,7 +55,7 @@ test('search includes description and attribute filters intersect', () => {
     assert.equal(matchesFilters(task, { ...EMPTY_FILTERS, urgent: 'no' }), false);
     assert.equal(matchesFilters(task, { ...EMPTY_FILTERS, priority: ['high'] }), false);
     assert.equal(
-        matchesFilters(task, { ...EMPTY_FILTERS, status: ['planned'], priority: ['normal'] }),
+        matchesFilters(task, { ...EMPTY_FILTERS, status: ['new'], priority: ['normal'] }),
         true,
     );
 });
@@ -61,7 +63,7 @@ test('search includes description and attribute filters intersect', () => {
 test('selected statuses and priorities use OR within each group and AND across groups', () => {
     const selected = {
         ...EMPTY_FILTERS,
-        status: ['done', 'planned'] as Task['status'][],
+        status: ['done', 'new'] as Task['status'][],
         priority: ['high', 'normal'] as Task['priority'][],
         urgent: 'yes' as const,
     };
@@ -72,10 +74,20 @@ test('selected statuses and priorities use OR within each group and AND across g
     assert.equal(matchesFilters(task, { ...EMPTY_FILTERS, status: [], priority: [] }), true);
 });
 
-test('filter URL accepts old singular values, removes unknowns and duplicates, and clears all', () => {
+test('parent filter includes roots without children and intersects other filters', () => {
+    const child = { ...task, id: '2', parent_id: task.id };
+    const parentsOnly = { ...EMPTY_FILTERS, parentsOnly: true };
+    assert.equal(matchesFilters(task, parentsOnly), true);
+    assert.equal(matchesFilters(child, parentsOnly), false);
+    assert.equal(matchesFilters(task, { ...parentsOnly, status: ['done'] }), false);
+    assert.equal(taskFiltersToSearch(parentsOnly).toString(), 'parents=1');
+    assert.deepEqual(taskFiltersFromSearch('?parents=1'), parentsOnly);
+});
+
+test('filter URL removes unknowns and duplicates, and clears all', () => {
     assert.deepEqual(taskFiltersFromSearch('?status=planned&priority=normal'), {
         ...EMPTY_FILTERS,
-        status: ['planned'],
+        status: [],
         priority: ['normal'],
     });
 
@@ -84,13 +96,14 @@ test('filter URL accepts old singular values, removes unknowns and duplicates, a
     );
     assert.deepEqual(selected, {
         q: 'релиз',
-        status: ['planned', 'done'],
+        status: ['done'],
         priority: ['low', 'high'],
         urgent: null,
+        parentsOnly: false,
     });
     assert.equal(
         taskFiltersToSearch(selected).toString(),
-        'q=%D1%80%D0%B5%D0%BB%D0%B8%D0%B7&status=planned&status=done&priority=low&priority=high',
+        'q=%D1%80%D0%B5%D0%BB%D0%B8%D0%B7&status=done&priority=low&priority=high',
     );
     assert.equal(taskFiltersToSearch(EMPTY_FILTERS).toString(), '');
     assert.equal(taskFiltersFromSearch('?urgent=yes').urgent, 'yes');

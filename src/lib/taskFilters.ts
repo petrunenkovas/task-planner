@@ -5,6 +5,7 @@ export type Filters = {
     status: Status[];
     priority: Priority[];
     urgent: 'yes' | 'no' | null;
+    parentsOnly: boolean;
 };
 
 export const EMPTY_FILTERS: Filters = {
@@ -12,6 +13,7 @@ export const EMPTY_FILTERS: Filters = {
     status: [],
     priority: [],
     urgent: null,
+    parentsOnly: false,
 };
 
 export function matchesFilters(task: Task, filters: Filters): boolean {
@@ -23,8 +25,15 @@ export function matchesFilters(task: Task, filters: Filters): boolean {
         filters.priority.length === 0 || filters.priority.includes(task.priority);
     const isMatchingUrgency =
         filters.urgent === null || task.isUrgent === (filters.urgent === 'yes');
+    const isMatchingParent = !filters.parentsOnly || task.parent_id === null;
 
-    return isMatchingQuery && isMatchingStatus && isMatchingPriority && isMatchingUrgency;
+    return (
+        isMatchingQuery &&
+        isMatchingStatus &&
+        isMatchingPriority &&
+        isMatchingUrgency &&
+        isMatchingParent
+    );
 }
 
 export function taskFiltersFromSearch(search: string): Filters {
@@ -37,6 +46,7 @@ export function taskFiltersFromSearch(search: string): Filters {
         status: STATUSES.filter((status) => params.getAll('status').includes(status)),
         priority: PRIORITIES.filter((priority) => params.getAll('priority').includes(priority)),
         urgent: urgent === 'yes' || urgent === 'no' ? urgent : null,
+        parentsOnly: params.get('parents') === '1',
     };
 }
 
@@ -58,6 +68,9 @@ export function taskFiltersToSearch(filters: Filters): URLSearchParams {
     });
     if (filters.urgent === 'yes' || filters.urgent === 'no') {
         params.set('urgent', filters.urgent);
+    }
+    if (filters.parentsOnly) {
+        params.set('parents', '1');
     }
 
     return params;

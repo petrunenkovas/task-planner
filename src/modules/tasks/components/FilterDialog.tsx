@@ -5,7 +5,7 @@ import type { DropdownOption } from '../../../components/ui/Dropdown';
 import { MultiSelect } from '../../../components/ui/MultiSelect';
 import { Select } from '../../../components/ui/Select';
 
-type Selection = Pick<Filters, 'status' | 'priority' | 'urgent'>;
+type Selection = Pick<Filters, 'status' | 'priority' | 'urgent' | 'parentsOnly'>;
 const taskCountWords = new Intl.PluralRules('ru');
 const statusOptions: DropdownOption<Selection['status'][number]>[] = [
     ...STATUSES.map((value) => ({ value, label: STATUS_LABELS[value] })),
@@ -43,6 +43,7 @@ export function FilterDialog({ filters, tasks, returnFocus, onClose, onApply }: 
         status: [...filters.status],
         priority: [...filters.priority],
         urgent: filters.urgent,
+        parentsOnly: filters.parentsOnly,
     }));
     const resultCount = useMemo(
         () => tasks.filter((task) => matchesFilters(task, { ...filters, ...draft })).length,
@@ -141,12 +142,27 @@ export function FilterDialog({ filters, tasks, returnFocus, onClose, onApply }: 
                         }
                     />
                 </div>
+                <label className="checkbox">
+                    <input
+                        type="checkbox"
+                        checked={draft.parentsOnly}
+                        onChange={(event) =>
+                            setDraft((current) => ({
+                                ...current,
+                                parentsOnly: event.target.checked,
+                            }))
+                        }
+                    />
+                    Только родительские
+                </label>
             </div>
             <div className="filter-dialog-footer">
                 <button
                     type="button"
                     className="filter-clear-button"
-                    onClick={() => setDraft({ status: [], priority: [], urgent: null })}
+                    onClick={() =>
+                        setDraft({ status: [], priority: [], urgent: null, parentsOnly: false })
+                    }
                 >
                     Очистить фильтры
                 </button>

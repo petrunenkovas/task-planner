@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const HOUR = 3_600_000;
-export const STATUSES = ['planned', 'in_progress', 'done', 'cancelled'] as const;
+export const STATUSES = ['new', 'in_progress', 'done', 'cancelled'] as const;
 export const PRIORITIES = ['low', 'normal', 'high'] as const;
 export const STATUS_LABELS: Record<Status, string> = {
-    planned: 'Запланирована',
+    new: 'Новая',
     in_progress: 'В работе',
     done: 'Завершена',
     cancelled: 'Отменена',
@@ -32,6 +32,7 @@ export const taskInputSchema = z
         status: z.enum(STATUSES),
         priority: z.enum(PRIORITIES),
         isUrgent: z.boolean(),
+        parent_id: z.string().uuid().nullable(),
     })
     .strict()
     .superRefine((value, ctx) => {

@@ -13,6 +13,7 @@ test('task mapper preserves exact instants and elapsed duration, exposes selecte
         status: 'in_progress',
         priority: 'high',
         isUrgent: true,
+        parent_id: null,
         version: 3,
         createdAt: '2026-10-01T00:00:00Z',
         updatedAt: '2026-10-02T00:00:00Z',

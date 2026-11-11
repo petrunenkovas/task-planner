@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Task, TaskInput } from '../../../lib/task';
 import {
+    createCachedSubtask,
     createCachedTask,
     removeCachedTask,
     replaceCachedTasks,
@@ -29,7 +30,7 @@ export function useTasks() {
         const timer = window.setTimeout(() => dispatch({ type: 'expire-success' }), 4000);
         return () => window.clearTimeout(timer);
     }, [status.notice, status.pending]);
-    const queues = useRef(new Map<string, Promise<void>>());
+    const queues = useRef(new Map<string, Promise<unknown>>());
 
     useEffect(() => {
         if (!('BroadcastChannel' in window)) {
@@ -46,6 +47,7 @@ export function useTasks() {
         id: string,
         patch: Partial<TaskInput>,
         expectedVersion: number | undefined = undefined,
+        subtaskTitles: readonly string[] = [],
     ) {
         const previous = queues.current.get(id) ?? Promise.resolve();
 
@@ -55,8 +57,15 @@ export function useTasks() {
             // A failed save must not leave this task's queue permanently rejected.
             .catch(() => undefined)
             .then(async () => {
-                await updateCachedTask(client, id, patch, expectedVersion);
+                const saved = await updateCachedTask(
+                    client,
+                    id,
+                    patch,
+                    expectedVersion,
+                    subtaskTitles,
+                );
                 dispatch({ type: 'success', text: 'Изменения сохранены' });
+                return saved;
             })
             .catch((error) => {
                 setMessage(error instanceof Error ? error.message : 'Не удалось сохранить');
@@ -75,14 +84,30 @@ export function useTasks() {
         return next;
     }
 
-    async function createTask(input: TaskInput) {
+    async function createTask(input: TaskInput, subtaskTitles: readonly string[] = []) {
         dispatch({ type: 'start' });
 
         try {
-            await createCachedTask(client, input);
+            const created = await createCachedTask(client, input, subtaskTitles);
             dispatch({ type: 'success', text: 'Задача создана' });
+            return created;
         } catch (error) {
             setMessage(error instanceof Error ? error.message : 'Не удалось сохранить');
+            throw error;
+        } finally {
+            dispatch({ type: 'finish' });
+        }
+    }
+
+    async function createSubtask(parentId: string, title: string) {
+        dispatch({ type: 'start' });
+
+        try {
+            const created = await createCachedSubtask(client, parentId, title);
+            dispatch({ type: 'success', text: 'Подзадача создана' });
+            return created;
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : 'Не удалось создать подзадачу');
             throw error;
         } finally {
             dispatch({ type: 'finish' });
@@ -136,6 +161,7 @@ export function useTasks() {
         setMessage,
         updateTask,
         createTask,
+        createSubtask,
         removeTask,
         reloadTasks,
         replaceTasks,

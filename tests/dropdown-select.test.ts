@@ -6,7 +6,7 @@ import { Select } from '../src/components/ui/Select';
 import { MultiSelect } from '../src/components/ui/MultiSelect';
 
 const options = [
-    { value: 'planned', label: 'Запланирована' },
+    { value: 'new', label: 'Новая' },
     { value: 'done', label: 'Завершена' },
 ];
 
@@ -33,15 +33,15 @@ test('MultiSelect renders selected labels and one form value per selection', () 
             label: 'Статус',
             name: 'status',
             options,
-            value: ['planned', 'done'],
+            value: ['new', 'done'],
             onChange: () => undefined,
         }),
     );
 
-    assert.match(html, /type="hidden" name="status" value="planned"/);
+    assert.match(html, /type="hidden" name="status" value="new"/);
     assert.match(html, /type="hidden" name="status" value="done"/);
     assert.equal((html.match(/\sname="status"/g) ?? []).length, 2);
-    assert.match(html, /aria-label="Статус: Запланирована, Завершена"/);
+    assert.match(html, /aria-label="Статус: Новая, Завершена"/);
 });
 
 test('an empty MultiSelect displays its placeholder and preserves an empty form value', () => {

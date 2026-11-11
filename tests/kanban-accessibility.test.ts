@@ -11,9 +11,10 @@ const task: Task = {
     description: 'Подробности задачи',
     start: '2026-09-27T10:00:00.000Z',
     end: '2026-09-27T12:00:00.000Z',
-    status: 'planned',
+    status: 'new',
     priority: 'normal',
     isUrgent: true,
+    parent_id: null,
     version: 1,
     createdAt: '2026-09-27T09:00:00.000Z',
     updatedAt: '2026-09-27T09:00:00.000Z',
@@ -55,7 +56,7 @@ test('kanban card only renders selected optional fields', () => {
     );
     assert.match(withDescription, /Подробности задачи/);
     assert.doesNotMatch(withDescription, /Обычный приоритет|Срочная/);
-    assert.doesNotMatch(withDescription, /2026-09-27|Запланирована<\/span>/);
+    assert.doesNotMatch(withDescription, /2026-09-27|Новая<\/span>/);
 
     const withTags = renderToStaticMarkup(
         createElement(KanbanBoard, { ...base, fields: ['priority', 'urgent'] }),

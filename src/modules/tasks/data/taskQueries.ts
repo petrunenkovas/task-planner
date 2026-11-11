@@ -11,10 +11,30 @@ export function taskQuery() {
     };
 }
 
-function taskInput(task: Task): TaskInput {
-    const { title, description, start, end, status, priority, isUrgent } = task;
+function cacheCommittedTasks(client: QueryClient, saved: Task[]): Task[] {
+    let committed = saved;
+    client.setQueryData<Task[]>(TASKS_QUERY_KEY, (tasks) => {
+        const byId = new Map(saved.map((task) => [task.id, task]));
+        const existingIds = new Set(tasks?.map((task) => task.id) ?? []);
+        const merged = [
+            ...(tasks?.map((task) => {
+                const savedTask = byId.get(task.id);
+                return savedTask !== undefined && savedTask.version >= task.version
+                    ? savedTask
+                    : task;
+            }) ?? []),
+            ...saved.filter((task) => !existingIds.has(task.id)),
+        ];
+        committed = saved.map((task) => merged.find((cached) => cached.id === task.id) ?? task);
+        return merged;
+    });
+    return committed;
+}
 
-    return { title, description, start, end, status, priority, isUrgent };
+function taskInput(task: Task): TaskInput {
+    const { title, description, start, end, status, priority, isUrgent, parent_id } = task;
+
+    return { title, description, start, end, status, priority, isUrgent, parent_id };
 }
 
 export async function updateCachedTask(
@@ -22,7 +42,8 @@ export async function updateCachedTask(
     id: string,
     patch: Partial<TaskInput>,
     expectedVersion: number | undefined = undefined,
-): Promise<void> {
+    subtaskTitles: readonly string[] = [],
+): Promise<Task[]> {
     await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
 
     const current = client.getQueryData<Task[]>(TASKS_QUERY_KEY)?.find((task) => task.id === id);
@@ -38,15 +59,19 @@ export async function updateCachedTask(
     );
 
     try {
-        const saved = await taskRepository.update(id, input, expectedVersion ?? current.version);
+        const saved = await taskRepository.updateWithSubtasks(
+            id,
+            input,
+            expectedVersion ?? current.version,
+            subtaskTitles,
+        );
 
         // A focus refetch may have started while PUT was in flight. Cancel it
         // before committing the server response so an older GET cannot replace it.
         await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
-        client.setQueryData<Task[]>(TASKS_QUERY_KEY, (tasks) =>
-            tasks?.map((task) => (task.id === id ? saved : task)),
-        );
+        const committed = cacheCommittedTasks(client, saved);
         await client.invalidateQueries({ queryKey: TASKS_QUERY_KEY });
+        return committed;
     } catch (error) {
         await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
         client.setQueryData<Task[]>(TASKS_QUERY_KEY, (tasks) =>
@@ -58,24 +83,42 @@ export async function updateCachedTask(
     }
 }
 
-export async function createCachedTask(client: QueryClient, input: TaskInput): Promise<void> {
+export async function createCachedTask(
+    client: QueryClient,
+    input: TaskInput,
+    subtaskTitles: readonly string[] = [],
+): Promise<Task[]> {
     await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
 
-    const created = await taskRepository.create(input);
+    const created = await taskRepository.createWithSubtasks(input, subtaskTitles);
 
     await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
-    client.setQueryData<Task[]>(TASKS_QUERY_KEY, (tasks) => [...(tasks ?? []), created]);
+    const committed = cacheCommittedTasks(client, created);
     await client.invalidateQueries({ queryKey: TASKS_QUERY_KEY });
+    return committed;
+}
+
+export async function createCachedSubtask(
+    client: QueryClient,
+    parentId: string,
+    title: string,
+): Promise<Task[]> {
+    await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
+    const created = await taskRepository.createSubtask(parentId, title);
+    await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
+    const committed = cacheCommittedTasks(client, created);
+    await client.invalidateQueries({ queryKey: TASKS_QUERY_KEY });
+    return committed;
 }
 
 export async function removeCachedTask(client: QueryClient, task: Task): Promise<void> {
     await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
 
     try {
-        await taskRepository.remove(task.id, task.version);
+        const removed = new Set(await taskRepository.remove(task.id, task.version));
         await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
         client.setQueryData<Task[]>(TASKS_QUERY_KEY, (tasks) =>
-            tasks?.filter((item) => item.id !== task.id),
+            tasks?.filter((item) => !removed.has(item.id)),
         );
         await client.invalidateQueries({ queryKey: TASKS_QUERY_KEY });
     } catch (error) {

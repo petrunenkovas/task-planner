@@ -2,7 +2,7 @@ import { STATUSES, type Status, type Task } from '../../../lib/task';
 
 export function groupKanbanTasks(tasks: readonly Task[]): Record<Status, Task[]> {
     const groups: Record<Status, Task[]> = {
-        planned: [],
+        new: [],
         in_progress: [],
         done: [],
         cancelled: [],

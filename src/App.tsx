@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { FieldChooser, type FieldOption } from './components/ui/FieldChooser';
 import { PlannerNavbar } from './components/layout/PlannerNavbar';
@@ -35,6 +35,7 @@ const GanttView = lazy(() =>
 );
 
 export function App() {
+    const editorScrollPosition = useRef<number | null>(null);
     const {
         query,
         tasks,
@@ -56,21 +57,27 @@ export function App() {
         ganttSort,
         ganttViewRef,
         editor,
+        editorSubtasks,
+        editorDescendantCount,
+        editorLevel,
+        editorParents,
         setEditor,
         editorInitiator,
         editorFocusFallback,
+        preserveEditorFocus,
         formError,
         hasFormConflict,
         timezone,
         filteredTasks,
-        sortedListTasks,
-        sortedGanttTasks,
         saveState,
         changeColumns,
         changeFilters,
         clearFilters,
         openEditor,
+        navigateEditor,
         saveForm,
+        addSubtask,
+        toggleSubtask,
         deleteTask,
         reloadEditor,
         importTasks,
@@ -143,7 +150,7 @@ export function App() {
                     <GanttView
                         ref={ganttViewRef}
                         key={timezone}
-                        tasks={sortedGanttTasks}
+                        tasks={filteredTasks}
                         isBusy={isPending}
                         mode={mode}
                         selectedColumns={ganttColumns}
@@ -159,7 +166,7 @@ export function App() {
 
         return (
             <TaskList
-                tasks={sortedListTasks}
+                tasks={filteredTasks}
                 columns={listColumns}
                 isPending={isPending}
                 onEdit={openEditor}
@@ -257,13 +264,22 @@ export function App() {
                     key={editor === 'new' ? 'new' : `${editor.id}:${editor.version}`}
                     returnFocus={editorInitiator.current}
                     fallbackFocus={editorFocusFallback.current}
+                    preserveFocusOnReopen={preserveEditorFocus}
+                    scrollPosition={editorScrollPosition}
                     task={editor === 'new' ? null : editor}
+                    subtasks={editorSubtasks}
+                    descendantCount={editorDescendantCount}
+                    level={editorLevel}
+                    parents={editorParents}
                     isBusy={isPending || isReloading}
                     isReloading={isReloading}
                     error={formError}
                     onReload={hasFormConflict ? reloadEditor : null}
                     onClose={() => setEditor(null)}
+                    onNavigate={navigateEditor}
                     onSave={saveForm}
+                    onAddSubtask={addSubtask}
+                    onToggleSubtask={toggleSubtask}
                     onDelete={deleteTask}
                 />
             )}

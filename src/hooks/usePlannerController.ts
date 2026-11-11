@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { matchPath, useLocation, useSearchParams } from 'react-router';
 import { type Task, type TaskInput } from '../lib/task';
+import { descendantIds, taskLevels } from '../lib/taskHierarchy';
 import {
     EMPTY_FILTERS,
     matchesFilters,
@@ -8,7 +9,7 @@ import {
     taskFiltersToSearch,
     type Filters,
 } from '../lib/taskFilters';
-import { nextTaskSort, sortTasks, visibleTaskSort, type TaskSort } from '../lib/taskSort';
+import { nextTaskSort, visibleTaskSort, type TaskSort } from '../lib/taskSort';
 import { systemTimeZone } from '../lib/time';
 import type { BoardFieldId, TaskColumnId } from '../lib/taskFields';
 import { TaskRepositoryError } from '../modules/tasks/data/taskRepository';
@@ -29,6 +30,7 @@ export function usePlannerController() {
         setMessage,
         updateTask,
         createTask,
+        createSubtask: persistSubtask,
         removeTask,
         reloadTasks,
         replaceTasks,
@@ -73,6 +75,7 @@ export function usePlannerController() {
     const [editor, setEditor] = useState<Task | 'new' | null>(null);
     const editorInitiator = useRef<HTMLElement | null>(null);
     const editorFocusFallback = useRef<(() => HTMLElement | null) | null>(null);
+    const preserveEditorFocus = useRef(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [hasFormConflict, setHasFormConflict] = useState(false);
     const [timezone, setTimezone] = useState(systemTimeZone);
@@ -89,14 +92,26 @@ export function usePlannerController() {
         () => tasks.filter((task) => matchesFilters(task, filters)),
         [tasks, filters],
     );
-    const sortedListTasks = useMemo(
-        () => sortTasks(filteredTasks, listSort),
-        [filteredTasks, listSort],
-    );
-    const sortedGanttTasks = useMemo(
-        () => sortTasks(filteredTasks, ganttSort),
-        [filteredTasks, ganttSort],
-    );
+    const hierarchyLevels = useMemo(() => taskLevels(tasks), [tasks]);
+    const editorSubtasks =
+        editor === null || editor === 'new'
+            ? []
+            : tasks.filter((task) => task.parent_id === editor.id);
+    const editorDescendantCount =
+        editor === null || editor === 'new' ? 0 : descendantIds(tasks, editor.id).size - 1;
+    const editorLevel =
+        editor === null || editor === 'new' ? 1 : (hierarchyLevels.get(editor.id) ?? 1);
+    const editorParents: Task[] = [];
+    if (editor !== null && editor !== 'new') {
+        const byId = new Map(tasks.map((task) => [task.id, task]));
+        let parentId = editor.parent_id;
+        while (parentId !== null) {
+            const parent = byId.get(parentId);
+            if (parent === undefined) break;
+            editorParents.unshift(parent);
+            parentId = parent.parent_id;
+        }
+    }
 
     function changeColumns(view: 'list' | 'gantt', columns: TaskColumnId[]) {
         if (view === 'list') {
@@ -149,6 +164,12 @@ export function usePlannerController() {
         setEditor(task);
     }
 
+    function navigateEditor(task: Task) {
+        setFormError(null);
+        setHasFormConflict(false);
+        setEditor(task);
+    }
+
     async function saveForm(input: TaskInput) {
         setFormError(null);
         try {
@@ -161,6 +182,44 @@ export function usePlannerController() {
         } catch (error) {
             setFormError(formErrorMessage(error, 'Не удалось сохранить'));
             setHasFormConflict(error instanceof TaskRepositoryError && error.status === 409);
+        }
+    }
+
+    async function addSubtask(title: string, newParentInput: TaskInput | null): Promise<boolean> {
+        setFormError(null);
+        try {
+            if (editor !== null && editor !== 'new') {
+                await persistSubtask(editor.id, title);
+            } else {
+                if (newParentInput === null) {
+                    throw new Error('Не удалось сохранить родительскую задачу.');
+                }
+                const saved = await createTask(newParentInput, [title]);
+                const parent = saved[0];
+                if (parent === undefined) {
+                    throw new Error('Не удалось получить сохранённую родительскую задачу.');
+                }
+                preserveEditorFocus.current = true;
+                setEditor(parent);
+            }
+            return true;
+        } catch (error) {
+            setFormError(formErrorMessage(error, 'Не удалось создать подзадачу'));
+            setHasFormConflict(error instanceof TaskRepositoryError && error.status === 409);
+            return false;
+        }
+    }
+
+    async function toggleSubtask(task: Task) {
+        setFormError(null);
+        try {
+            await updateTask(
+                task.id,
+                { status: task.status === 'done' ? 'new' : 'done' },
+                task.version,
+            );
+        } catch (error) {
+            setFormError(formErrorMessage(error, 'Не удалось обновить подзадачу'));
         }
     }
 
@@ -214,8 +273,12 @@ export function usePlannerController() {
         );
     }
 
-    function changeStatus(id: string, status: Task['status'], version: number) {
-        return updateTask(id, { status }, version);
+    async function changeStatus(
+        id: string,
+        status: Task['status'],
+        version: number,
+    ): Promise<void> {
+        await updateTask(id, { status }, version);
     }
 
     function sortList(column: TaskColumnId) {
@@ -254,21 +317,27 @@ export function usePlannerController() {
         ganttSort,
         ganttViewRef,
         editor,
+        editorSubtasks,
+        editorDescendantCount,
+        editorLevel,
+        editorParents,
         setEditor,
         editorInitiator,
         editorFocusFallback,
+        preserveEditorFocus,
         formError,
         hasFormConflict,
         timezone,
         filteredTasks,
-        sortedListTasks,
-        sortedGanttTasks,
         saveState,
         changeColumns,
         changeFilters,
         clearFilters,
         openEditor,
+        navigateEditor,
         saveForm,
+        addSubtask,
+        toggleSubtask,
         deleteTask,
         reloadEditor,
         importTasks,

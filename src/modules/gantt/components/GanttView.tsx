@@ -34,6 +34,8 @@ import {
 import { scaleLabel, timelineRange, lowerUnit, type ScaleMode } from '../model/timeline';
 import { SortableHeader, sortAriaValue } from '../../../components/ui/SortableHeader';
 import type { TaskSort } from '../../../lib/taskSort';
+import { TaskTreeTitle } from '../../tasks/components/TaskTreeTitle';
+import { visibleTaskTreeRows, type TaskTreeRow } from '../../tasks/model/taskTree';
 
 function TaskBar({ data }: { data: ITask }) {
     return (
@@ -107,6 +109,13 @@ type Props = {
 export type GanttViewHandle = { captureScroll: () => void };
 
 export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(props, ref) {
+    const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
+    const treeRows = useMemo(
+        () => visibleTaskTreeRows(props.tasks, expandedIds, props.sort),
+        [props.tasks, expandedIds, props.sort],
+    );
+    const treeRowById = useRef(new Map<string, TaskTreeRow>());
+    treeRowById.current = new Map(treeRows.map((row) => [row.task.id, row]));
     const [isCompact, setIsCompact] = useState(
         () => window.matchMedia(GANTT_COMPACT_MEDIA).matches,
     );
@@ -134,6 +143,18 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
             restoredScroll.current = { left: state.scrollLeft, top: state.scrollTop };
         }
     }, []);
+    const toggleTask = useCallback(
+        (id: string) => {
+            captureScroll();
+            setExpandedIds((current) => {
+                const next = new Set(current);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+            });
+        },
+        [captureScroll],
+    );
     useImperativeHandle(ref, () => ({ captureScroll }), [captureScroll]);
     const sortColumn = useCallback(
         (column: TaskColumnId) => {
@@ -164,18 +185,20 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
                         header,
                         width: taskColumnWidth(id, columnMode),
                         resize: false,
-                        cell: ({ row }) => (
-                            <button
-                                className="chart-task-title"
-                                disabled={latest.current.isBusy}
-                                onClick={(event) =>
-                                    latest.current.onEdit(String(row.id), event.currentTarget)
-                                }
-                                title={String(row.text)}
-                            >
-                                {String(row.text)}
-                            </button>
-                        ),
+                        cell: ({ row }) => {
+                            const treeRow = treeRowById.current.get(String(row.id));
+                            return treeRow === undefined ? null : (
+                                <TaskTreeTitle
+                                    {...treeRow}
+                                    titleClassName="chart-task-title"
+                                    isDisabled={latest.current.isBusy}
+                                    onToggle={toggleTask}
+                                    onEdit={(initiator) =>
+                                        latest.current.onEdit(treeRow.task.id, initiator)
+                                    }
+                                />
+                            );
+                        },
                     };
                 }
                 const field = GANTT_COLUMN_FIELDS[id];
@@ -191,10 +214,14 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
                     ),
                 };
             }),
-        [columnMode, props.selectedColumns, props.sort, sortColumn],
+        [columnMode, props.selectedColumns, props.sort, sortColumn, toggleTask],
     );
     const { gridWidth, minimumWidth } = taskGridLayout(props.selectedColumns, layoutMode);
-    const bounds = useMemo(() => timelineRange(props.tasks, props.mode), [props.tasks, props.mode]);
+    const visibleTasks = useMemo(() => treeRows.map((row) => row.task), [treeRows]);
+    const bounds = useMemo(
+        () => timelineRange(visibleTasks, props.mode),
+        [visibleTasks, props.mode],
+    );
     const cellWidth = GANTT_CELL_WIDTHS[props.mode];
     configureHourFrame(bounds.start);
     const previousUserSelect = useRef<string | null>(null);
@@ -263,11 +290,11 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
             setHeaderTarget(null);
         };
     }, [props.mode, props.sort?.column, props.sort?.direction, revision]);
-    const taskIds = props.tasks
+    const taskIds = visibleTasks
         .map((task) => task.id)
         .sort()
         .join(',');
-    const tasks = useMemo(() => props.tasks.map(toGanttTask), [props.tasks]);
+    const tasks = useMemo(() => visibleTasks.map(toGanttTask), [visibleTasks]);
 
     const resetGesture = useCallback(() => {
         const state = apiRef.current?.getState();
@@ -421,7 +448,9 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
     useEffect(() => {
         gesture.current = null;
         restoreSelection();
-        void apiRef.current?.exec('scroll-chart', { left: 0, top: 0 });
+        if (restoredScroll.current === null) {
+            void apiRef.current?.exec('scroll-chart', { left: 0, top: 0 });
+        }
     }, [props.mode, taskIds, restoreSelection]);
 
     useEffect(() => {
@@ -447,7 +476,7 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
         return () => {
             isActive = false;
         };
-    }, [revision, props.sort?.column, props.sort?.direction]);
+    }, [revision, props.sort?.column, props.sort?.direction, taskIds]);
 
     useEffect(() => {
         const onCancel = () => {
@@ -539,6 +568,10 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
 
     const openTaskOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         const target = event.target as Element;
+        if (target.closest('.task-tree-toggle') !== null) {
+            clickIntent.current = null;
+            return;
+        }
         if (target.closest('.wx-link') !== null) {
             return;
         }

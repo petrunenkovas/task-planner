@@ -22,9 +22,10 @@ const task: Task = {
     description: '',
     start: '2026-09-27T10:00:00.000Z',
     end: '2026-09-27T12:00:00.000Z',
-    status: 'planned',
+    status: 'new',
     priority: 'normal',
     isUrgent: false,
+    parent_id: null,
     version: 2,
     createdAt: '2026-09-27T09:00:00.000Z',
     updatedAt: '2026-09-27T09:30:00.000Z',
@@ -33,7 +34,58 @@ const task: Task = {
 test('backup roundtrip preserves task metadata', () => {
     const backup = createBackup([task]);
     assert.equal(JSON.parse(backup).format, 'task-planner-backup');
+    assert.equal(JSON.parse(backup).version, 2);
     assert.deepEqual(parseBackup(backup), [task]);
+});
+
+test('legacy backup with new status restores roots, but planned is rejected', () => {
+    const { parent_id: _parentId, ...legacyTask } = task;
+    const legacy = { format: 'task-planner-backup', version: 1, tasks: [legacyTask] };
+    assert.deepEqual(parseBackup(JSON.stringify(legacy)), [task]);
+    legacy.tasks = [{ ...legacyTask, status: 'planned' as never }];
+    assert.throws(() => parseBackup(JSON.stringify(legacy)), /старый статус planned/);
+    const modern = JSON.parse(createBackup([task]));
+    modern.tasks[0].status = 'planned';
+    assert.throws(() => parseBackup(JSON.stringify(modern)), /старый статус planned/);
+});
+
+test('backup validates parent references and maximum depth', () => {
+    const child = { ...task, id: 'b926d852-4444-41e7-b64f-8f17d86aa621', parent_id: task.id };
+    assert.deepEqual(parseBackup(createBackup([task, child])), [task, child]);
+    const backup = JSON.parse(createBackup([task, child]));
+    backup.tasks[1].parent_id = 'b926d852-4444-41e7-b64f-8f17d86aa622';
+    assert.throws(() => parseBackup(JSON.stringify(backup)), /Родительская задача не найдена/);
+    backup.tasks[1].parent_id = backup.tasks[1].id;
+    assert.throws(() => parseBackup(JSON.stringify(backup)), /цикл/);
+    const chain = [task];
+    for (let level = 1; level <= 5; level += 1) {
+        chain.push({
+            ...task,
+            id: `b926d852-4444-41e7-b64f-8f17d86aa62${level}`,
+            parent_id: chain.at(-1)!.id,
+        });
+    }
+    assert.throws(() => createBackup(chain), /Максимальная глубина/);
+});
+
+test('v2 backup expands a fractional-hour parent around children and roundtrips', () => {
+    const parent = {
+        ...task,
+        start: '2026-09-27T10:15:00.000Z',
+        end: '2026-09-27T12:15:00.000Z',
+    };
+    const child = {
+        ...task,
+        id: 'b926d852-4444-41e7-b64f-8f17d86aa621',
+        parent_id: parent.id,
+        start: '2026-09-27T09:00:00.000Z',
+        end: '2026-09-27T13:00:00.000Z',
+    };
+    const normalized = parseBackup(createBackup([parent, child]));
+    assert.equal(normalized[0]!.start, '2026-09-27T08:15:00.000Z');
+    assert.equal(normalized[0]!.end, '2026-09-27T13:15:00.000Z');
+    assert.deepEqual(normalized[1], child);
+    assert.deepEqual(parseBackup(createBackup(normalized)), normalized);
 });
 
 test('import rejects malformed records and duplicate IDs before replacement', () => {

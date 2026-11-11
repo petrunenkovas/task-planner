@@ -220,6 +220,45 @@
 .task-title-button:hover {
     text-decoration: underline;
 }
+.task-tree-title {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding-left: calc(var(--task-tree-depth) * 16px);
+}
+.task-tree-toggle,
+.task-tree-toggle-placeholder {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 28px;
+    margin-right: 4px;
+}
+.task-tree-toggle {
+    display: grid;
+    place-items: center;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #43536b;
+}
+.task-tree-chevron {
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+}
+.task-tree-toggle[aria-expanded='true'] .task-tree-chevron {
+    transform: rotate(45deg);
+}
+.task-tree-title .chart-task-title,
+.task-tree-title .task-title-button {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+}
 .sr-only {
     position: absolute;
     width: 1px;

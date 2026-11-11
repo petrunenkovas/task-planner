@@ -1,9 +1,11 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { PRIORITY_LABELS, STATUS_LABELS, type Task } from '../../../lib/task';
 import { TASK_COLUMN_LABELS, type TaskColumnId } from '../../../lib/taskFields';
 import { dateLabel, durationLabel } from '../../../lib/time';
 import { SortableHeader, sortAriaValue } from '../../../components/ui/SortableHeader';
 import type { TaskSort } from '../../../lib/taskSort';
+import { TaskTreeTitle } from '../../tasks/components/TaskTreeTitle';
+import { visibleTaskTreeRows, type TaskTreeRow } from '../../tasks/model/taskTree';
 
 const COLUMN_WIDTHS: Record<TaskColumnId, number> = {
     title: 300,
@@ -28,19 +30,33 @@ type Props = {
 
 export function TaskList({ tasks, columns, isPending, onEdit, sort, onSort }: Props) {
     const tableWidth = columns.reduce((width, id) => width + COLUMN_WIDTHS[id], ACTION_WIDTH);
+    const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
+    const rows = useMemo(
+        () => visibleTaskTreeRows(tasks, expandedIds, sort),
+        [tasks, expandedIds, sort],
+    );
 
-    function cell(task: Task, column: TaskColumnId): ReactNode {
+    function toggleTask(id: string) {
+        setExpandedIds((current) => {
+            const next = new Set(current);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }
+
+    function cell(row: TaskTreeRow, column: TaskColumnId): ReactNode {
+        const { task } = row;
         switch (column) {
             case 'title':
                 return (
-                    <button
-                        className="task-title-button"
-                        disabled={isPending}
-                        onClick={() => onEdit(task)}
-                        title={task.title}
-                    >
-                        {task.title}
-                    </button>
+                    <TaskTreeTitle
+                        {...row}
+                        titleClassName="task-title-button"
+                        isDisabled={isPending}
+                        onToggle={toggleTask}
+                        onEdit={() => onEdit(task)}
+                    />
                 );
             case 'description':
                 return (
@@ -92,21 +108,21 @@ export function TaskList({ tasks, columns, isPending, onEdit, sort, onSort }: Pr
                     </tr>
                 </thead>
                 <tbody>
-                    {tasks.map((task) => (
-                        <tr key={task.id}>
+                    {rows.map((row) => (
+                        <tr key={row.task.id}>
                             {columns.map((id) => (
                                 <td
                                     key={id}
                                     data-label={id === 'title' ? undefined : TASK_COLUMN_LABELS[id]}
                                 >
-                                    {cell(task, id)}
+                                    {cell(row, id)}
                                 </td>
                             ))}
                             <td>
                                 <button
                                     className="ghost-button"
                                     disabled={isPending}
-                                    onClick={() => onEdit(task)}
+                                    onClick={() => onEdit(row.task)}
                                 >
                                     Изменить
                                 </button>
