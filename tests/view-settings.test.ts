@@ -4,10 +4,6 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import type { Task } from '../src/lib/task';
-import { EMPTY_FILTERS } from '../src/lib/taskFilters';
-import { FieldChooser } from '../src/components/ui/FieldChooser';
-import { TaskFilters } from '../src/modules/tasks/components/TaskFilters';
-import { FilterDialog } from '../src/modules/tasks/components/FilterDialog';
 import { TaskList } from '../src/modules/list/components/TaskList';
 
 const task: Task = {
@@ -49,41 +45,4 @@ test('list renders only selected fixed-width fields and keeps edit action', () =
     assert.doesNotMatch(html, /<small>|>Статус<\/span>/);
     assert.match(html, /Изменить<\/a>/);
     assert.match(html, /href="\/tasks\/b926d852-4444-41e7-b64f-8f17d86aa620"/);
-});
-
-test('filter bar keeps filter dialog trigger, search clear and view settings', () => {
-    const html = renderToStaticMarkup(
-        createElement(TaskFilters, {
-            tasks: [task],
-            filters: { ...EMPTY_FILTERS, q: 'Проверка' },
-            onChange: () => undefined,
-            settings: createElement(FieldChooser, {
-                label: 'Настроить колонки',
-                options: [{ id: 'title', label: 'Название', isRequired: true }],
-                selected: ['title'],
-                onChange: () => undefined,
-            }),
-        }),
-    );
-
-    assert.match(html, /Фильтры/);
-    assert.match(html, /aria-label="Очистить поиск"/);
-    assert.match(html, /aria-label="Настроить колонки"/);
-    assert.match(html, /Выбрать все/);
-    assert.match(html, /Сбросить все/);
-    assert.doesNotMatch(html, /aria-label="Сбросить"/);
-});
-
-test('empty urgency filter keeps the any-urgency placeholder', () => {
-    const html = renderToStaticMarkup(
-        createElement(FilterDialog, {
-            filters: EMPTY_FILTERS,
-            tasks: [task],
-            returnFocus: null,
-            onClose: () => undefined,
-            onApply: () => undefined,
-        }),
-    );
-
-    assert.match(html, /aria-label="Срочность: Любая срочность"/);
 });

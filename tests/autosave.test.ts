@@ -57,6 +57,40 @@ test('autosave debounces edits and a flush cancels the pending timer', async () 
     coordinator.dispose();
 });
 
+test('debounce timer saves pending changes without an explicit flush', async () => {
+    const timers = new Map<number, () => void>();
+    let nextTimer = 0;
+    let saves = 0;
+    const coordinator = new AutosaveCoordinator(
+        async () => {
+            saves += 1;
+            return true;
+        },
+        700,
+        (callback, delay) => {
+            assert.equal(delay, 700);
+            const id = ++nextTimer;
+            timers.set(id, callback);
+            return id as unknown as ReturnType<typeof setTimeout>;
+        },
+        (timer) => timers.delete(timer as unknown as number),
+    );
+
+    coordinator.changed();
+    coordinator.changed();
+    assert.equal(timers.size, 1);
+    assert.equal(saves, 0);
+
+    const [id, callback] = [...timers.entries()][0]!;
+    timers.delete(id);
+    callback();
+    await Promise.resolve();
+
+    assert.equal(saves, 1);
+    assert.equal(timers.size, 0);
+    coordinator.dispose();
+});
+
 test('autosave serializes edits made during an in-flight save', async () => {
     let finishFirst: (value: boolean) => void = () => undefined;
     const first = new Promise<boolean>((resolve) => {
