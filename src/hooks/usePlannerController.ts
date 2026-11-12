@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { matchPath, useLocation, useSearchParams } from 'react-router';
 import { type Task, type TaskInput } from '../lib/task';
-import { descendantIds, taskLevels } from '../lib/taskHierarchy';
 import {
     EMPTY_FILTERS,
     matchesFilters,
@@ -12,7 +11,7 @@ import {
 import { nextTaskSort, visibleTaskSort, type TaskSort } from '../lib/taskSort';
 import { systemTimeZone } from '../lib/time';
 import type { BoardFieldId, TaskColumnId } from '../lib/taskFields';
-import { TaskRepositoryError } from '../modules/tasks/data/taskRepository';
+import { createDemoTasks } from '../modules/tasks/model/demoTasks';
 import { useTasks } from '../modules/tasks/hooks/useTasks';
 import type { GanttViewHandle } from '../modules/gantt/components/GanttView';
 import type { ScaleMode } from '../modules/gantt/model/timeline';
@@ -20,6 +19,7 @@ import { readPreferences, writePreferences, validatePreferences } from '../prefe
 import { WORKSPACE_ROUTES } from '../routes';
 
 export function usePlannerController() {
+    const taskStore = useTasks();
     const {
         query,
         tasks,
@@ -29,12 +29,9 @@ export function usePlannerController() {
         message,
         setMessage,
         updateTask,
-        createTask,
-        createSubtask: persistSubtask,
-        removeTask,
-        reloadTasks,
         replaceTasks,
-    } = useTasks();
+        seedDemoTasks,
+    } = taskStore;
 
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -72,12 +69,6 @@ export function usePlannerController() {
         }
     }, [mode, ganttColumns, listColumns, boardFields]);
 
-    const [editor, setEditor] = useState<Task | 'new' | null>(null);
-    const editorInitiator = useRef<HTMLElement | null>(null);
-    const editorFocusFallback = useRef<(() => HTMLElement | null) | null>(null);
-    const preserveEditorFocus = useRef(false);
-    const [formError, setFormError] = useState<string | null>(null);
-    const [hasFormConflict, setHasFormConflict] = useState(false);
     const [timezone, setTimezone] = useState(systemTimeZone);
 
     useEffect(() => {
@@ -92,27 +83,6 @@ export function usePlannerController() {
         () => tasks.filter((task) => matchesFilters(task, filters)),
         [tasks, filters],
     );
-    const hierarchyLevels = useMemo(() => taskLevels(tasks), [tasks]);
-    const editorSubtasks =
-        editor === null || editor === 'new'
-            ? []
-            : tasks.filter((task) => task.parent_id === editor.id);
-    const editorDescendantCount =
-        editor === null || editor === 'new' ? 0 : descendantIds(tasks, editor.id).size - 1;
-    const editorLevel =
-        editor === null || editor === 'new' ? 1 : (hierarchyLevels.get(editor.id) ?? 1);
-    const editorParents: Task[] = [];
-    if (editor !== null && editor !== 'new') {
-        const byId = new Map(tasks.map((task) => [task.id, task]));
-        let parentId = editor.parent_id;
-        while (parentId !== null) {
-            const parent = byId.get(parentId);
-            if (parent === undefined) break;
-            editorParents.unshift(parent);
-            parentId = parent.parent_id;
-        }
-    }
-
     function changeColumns(view: 'list' | 'gantt', columns: TaskColumnId[]) {
         if (view === 'list') {
             setListColumns(columns);
@@ -135,135 +105,15 @@ export function usePlannerController() {
         changeFilters(EMPTY_FILTERS);
     }
 
-    function formErrorMessage(error: unknown, fallback: string): string | null {
-        if (error instanceof Error) {
-            return error.message === '' ? null : error.message;
-        }
-        return fallback;
-    }
-
-    function openEditor(task: Task | 'new', initiator: HTMLElement | null = null) {
-        editorInitiator.current =
-            initiator ??
-            (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-        const board = editorInitiator.current?.closest<HTMLElement>('.kanban-workspace');
-        editorFocusFallback.current =
-            board !== null && board !== undefined
-                ? () => {
-                      const title =
-                          task !== 'new'
-                              ? board.querySelector<HTMLElement>(
-                                    `[data-task-id="${CSS.escape(task.id)}"] .task-title-button`,
-                                )
-                              : null;
-                      return title ?? (board.isConnected ? board : null);
-                  }
-                : null;
-        setFormError(null);
-        setHasFormConflict(false);
-        setEditor(task);
-    }
-
-    function navigateEditor(task: Task) {
-        setFormError(null);
-        setHasFormConflict(false);
-        setEditor(task);
-    }
-
-    async function saveForm(input: TaskInput) {
-        setFormError(null);
-        try {
-            if (editor !== null && editor !== 'new') {
-                await updateTask(editor.id, input, editor.version);
-            } else {
-                await createTask(input);
-            }
-            setEditor(null);
-        } catch (error) {
-            setFormError(formErrorMessage(error, 'Не удалось сохранить'));
-            setHasFormConflict(error instanceof TaskRepositoryError && error.status === 409);
-        }
-    }
-
-    async function addSubtask(title: string, newParentInput: TaskInput | null): Promise<boolean> {
-        setFormError(null);
-        try {
-            if (editor !== null && editor !== 'new') {
-                await persistSubtask(editor.id, title);
-            } else {
-                if (newParentInput === null) {
-                    throw new Error('Не удалось сохранить родительскую задачу.');
-                }
-                const saved = await createTask(newParentInput, [title]);
-                const parent = saved[0];
-                if (parent === undefined) {
-                    throw new Error('Не удалось получить сохранённую родительскую задачу.');
-                }
-                preserveEditorFocus.current = true;
-                setEditor(parent);
-            }
-            return true;
-        } catch (error) {
-            setFormError(formErrorMessage(error, 'Не удалось создать подзадачу'));
-            setHasFormConflict(error instanceof TaskRepositoryError && error.status === 409);
-            return false;
-        }
-    }
-
-    async function toggleSubtask(task: Task) {
-        setFormError(null);
-        try {
-            await updateTask(
-                task.id,
-                { status: task.status === 'done' ? 'new' : 'done' },
-                task.version,
-            );
-        } catch (error) {
-            setFormError(formErrorMessage(error, 'Не удалось обновить подзадачу'));
-        }
-    }
-
-    async function deleteTask() {
-        if (editor === null || editor === 'new') {
-            return;
-        }
-        setFormError(null);
-        try {
-            await removeTask(editor);
-            setEditor(null);
-        } catch (error) {
-            setFormError(formErrorMessage(error, 'Не удалось удалить'));
-            setHasFormConflict(error instanceof TaskRepositoryError && error.status === 409);
-        }
-    }
-
-    async function reloadEditor() {
-        if (editor === null || editor === 'new') {
-            return;
-        }
-        try {
-            const current = await reloadTasks();
-            const actual = current.find((task) => task.id === editor.id);
-            setEditor(actual ?? null);
-            setFormError(null);
-            setHasFormConflict(false);
-            if (actual === undefined) {
-                setMessage('Задача уже удалена');
-            }
-        } catch (error) {
-            setFormError(formErrorMessage(error, 'Не удалось обновить'));
-        }
-    }
-
     async function importTasks(imported: Task[]) {
         await replaceTasks(imported);
-        setEditor(null);
     }
 
-    function openGanttEditor(id: string, initiator: HTMLElement | null) {
-        const task = tasks.find((item) => item.id === id);
-        if (task !== undefined && !isPending) {
-            openEditor(task, initiator);
+    async function loadDemoTasks() {
+        try {
+            await seedDemoTasks(createDemoTasks());
+        } catch {
+            // useTasks displays the repository error in the app toast.
         }
     }
 
@@ -297,6 +147,7 @@ export function usePlannerController() {
     }
 
     return {
+        taskStore,
         query,
         tasks,
         isPending,
@@ -316,32 +167,14 @@ export function usePlannerController() {
         listSort,
         ganttSort,
         ganttViewRef,
-        editor,
-        editorSubtasks,
-        editorDescendantCount,
-        editorLevel,
-        editorParents,
-        setEditor,
-        editorInitiator,
-        editorFocusFallback,
-        preserveEditorFocus,
-        formError,
-        hasFormConflict,
         timezone,
         filteredTasks,
         saveState,
         changeColumns,
         changeFilters,
         clearFilters,
-        openEditor,
-        navigateEditor,
-        saveForm,
-        addSubtask,
-        toggleSubtask,
-        deleteTask,
-        reloadEditor,
         importTasks,
-        openGanttEditor,
+        loadDemoTasks,
         changeGanttTask,
         changeStatus,
         sortList,

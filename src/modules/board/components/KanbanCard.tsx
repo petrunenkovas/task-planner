@@ -1,4 +1,5 @@
 import type { Ref } from 'react';
+import { Link } from 'react-router';
 import { PRIORITY_LABELS, type Task } from '../../../lib/task';
 import type { BoardFieldId } from '../../../lib/taskFields';
 
@@ -9,17 +10,8 @@ type Props = {
     isDragging?: boolean;
     cardRef?: Ref<HTMLDivElement>;
     handleRef?: Ref<HTMLButtonElement>;
-    onEdit: (task: Task, initiator: HTMLElement) => void;
 };
-export function KanbanCard({
-    task,
-    fields,
-    isBusy,
-    isDragging,
-    cardRef,
-    handleRef,
-    onEdit,
-}: Props) {
+export function KanbanCard({ task, fields, isBusy, isDragging, cardRef, handleRef }: Props) {
     return (
         <div
             ref={cardRef}
@@ -27,13 +19,9 @@ export function KanbanCard({
             className={`kanban-card ${isDragging === true ? 'dragging' : ''}`}
         >
             <div className="kanban-card-heading">
-                <button
-                    className="task-title-button"
-                    disabled={isBusy}
-                    onClick={(event) => onEdit(task, event.currentTarget)}
-                >
+                <Link className="task-title-button" to={`/tasks/${task.id}`}>
                     {task.title}
-                </button>
+                </Link>
                 <button
                     ref={handleRef}
                     className="kanban-drag-handle"

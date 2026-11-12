@@ -18,7 +18,6 @@ type Props = {
     fields: BoardFieldId[];
     isBusy: boolean;
     hasTasks: boolean;
-    onEdit: (task: Task, initiator: HTMLElement) => void;
     onStatusChange: (id: string, status: Status, version: number) => Promise<void>;
     onClearFilters: () => void;
 };
@@ -28,12 +27,7 @@ const SENSORS = [
     KeyboardSensor.configure({ offset: { x: KANBAN_COLUMN_WIDTH + KANBAN_COLUMN_GAP, y: 40 } }),
 ];
 
-function DraggableCard(props: {
-    task: Task;
-    fields: BoardFieldId[];
-    isBusy: boolean;
-    onEdit: Props['onEdit'];
-}) {
+function DraggableCard(props: { task: Task; fields: BoardFieldId[]; isBusy: boolean }) {
     const { ref, handleRef, isDragging } = useDraggable({
         id: props.task.id,
         disabled: props.isBusy,
@@ -46,7 +40,6 @@ export function KanbanBoard({
     fields,
     isBusy,
     hasTasks,
-    onEdit,
     onStatusChange,
     onClearFilters,
 }: Props) {
@@ -224,12 +217,7 @@ export function KanbanBoard({
                             {groups[status].map((task, index) => (
                                 <Fragment key={task.id}>
                                     {preview?.target === status && previewIndex === index && ghost}
-                                    <DraggableCard
-                                        task={task}
-                                        fields={fields}
-                                        isBusy={isBusy}
-                                        onEdit={onEdit}
-                                    />
+                                    <DraggableCard task={task} fields={fields} isBusy={isBusy} />
                                 </Fragment>
                             ))}
                             {preview?.target === status &&

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
 import type { Task } from '../src/lib/task';
 import { nextTaskSort, sortTasks, visibleTaskSort } from '../src/lib/taskSort';
 import { SortableHeader, sortAriaValue } from '../src/components/ui/SortableHeader';
@@ -147,14 +148,17 @@ test('header exposes current direction and next action', () => {
     assert.equal(sortAriaValue(active, 'status'), 'none');
 
     const list = renderToStaticMarkup(
-        createElement(TaskList, {
-            tasks,
-            columns: ['title', 'status'],
-            isPending: false,
-            onEdit: () => undefined,
-            sort: active,
-            onSort: () => undefined,
-        }),
+        createElement(
+            MemoryRouter,
+            null,
+            createElement(TaskList, {
+                tasks,
+                columns: ['title', 'status'],
+                isPending: false,
+                sort: active,
+                onSort: () => undefined,
+            }),
+        ),
     );
     assert.match(list, /<th aria-sort="ascending">/);
     assert.match(list, /<th aria-sort="none">/);

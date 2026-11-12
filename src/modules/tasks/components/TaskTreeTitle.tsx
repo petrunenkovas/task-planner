@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Link } from 'react-router';
 import type { Task } from '../../../lib/task';
 import type { TaskTreeRow } from '../model/taskTree';
 
@@ -7,7 +8,6 @@ type Props = Pick<TaskTreeRow, 'depth' | 'hasChildren' | 'isExpanded'> & {
     titleClassName: string;
     isDisabled: boolean;
     onToggle: (id: string) => void;
-    onEdit: (initiator: HTMLElement) => void;
 };
 
 export function TaskTreeTitle({
@@ -18,7 +18,6 @@ export function TaskTreeTitle({
     titleClassName,
     isDisabled,
     onToggle,
-    onEdit,
 }: Props) {
     return (
         <div className="task-tree-title" style={{ '--task-tree-depth': depth } as CSSProperties}>
@@ -39,15 +38,9 @@ export function TaskTreeTitle({
             ) : (
                 <span className="task-tree-toggle-placeholder" aria-hidden="true" />
             )}
-            <button
-                type="button"
-                className={titleClassName}
-                disabled={isDisabled}
-                onClick={(event) => onEdit(event.currentTarget)}
-                title={task.title}
-            >
+            <Link className={titleClassName} to={`/tasks/${task.id}`} title={task.title}>
                 {task.title}
-            </button>
+            </Link>
         </div>
     );
 }

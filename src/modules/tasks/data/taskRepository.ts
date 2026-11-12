@@ -6,6 +6,7 @@ import {
     subtaskInput,
     taskLevels,
 } from '../../../lib/taskHierarchy';
+import { createBackup } from '../backup/backupFormat';
 
 const DATABASE_NAME = 'task-planner';
 const STORE_NAME = 'tasks';
@@ -426,6 +427,9 @@ export const taskRepository = {
                         let replacement: ReturnType<typeof prepareTaskReplacement>;
                         try {
                             replacement = prepareTaskReplacement(tasks, current, highWater);
+                            // Imported versions are replaced with local versions. Check the exact
+                            // records before clearing the current store so restore remains exportable.
+                            createBackup(replacement.tasks);
                         } catch (error) {
                             reject(error as Error);
                             return;
@@ -440,5 +444,37 @@ export const taskRepository = {
         );
         updated();
         return restored;
+    },
+    seedIfEmpty: async (tasks: Task[]) => {
+        taskLevels(tasks);
+        const seeded = await transaction<Task[]>(
+            'readwrite',
+            (store, resolve, reject, metadata) => {
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    if (request.result.length > 0) {
+                        reject(
+                            new TaskRepositoryError(
+                                'Примеры можно загрузить только в пустой список.',
+                                409,
+                            ),
+                        );
+                        return;
+                    }
+                    readHighWater(metadata, (highWater) => {
+                        try {
+                            const replacement = prepareTaskReplacement(tasks, [], highWater);
+                            replacement.tasks.forEach((task) => store.add(task));
+                            writeHighWater(metadata, replacement.version);
+                            resolve([...replacement.tasks].sort(compareTasksByStart));
+                        } catch (error) {
+                            reject(error as Error);
+                        }
+                    });
+                };
+            },
+        );
+        updated();
+        return seeded;
     },
 };

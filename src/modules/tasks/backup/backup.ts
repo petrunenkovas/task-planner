@@ -1,56 +1,15 @@
-import { z } from 'zod';
-import { taskInputSchema, type Task } from '../../../lib/task';
+import type { Task } from '../../../lib/task';
 import { normalizeTaskRanges, taskLevels } from '../../../lib/taskHierarchy';
 import { taskRepository } from '../data/taskRepository';
+import {
+    backupSchema,
+    createBackup,
+    legacyBackupSchema,
+    MAX_BACKUP_BYTES,
+    taskSchema,
+} from './backupFormat';
 
-export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
-export const MAX_BACKUP_TASKS = 20_000;
-const instant = z.string().datetime({ offset: true });
-const taskSchema = taskInputSchema
-    .safeExtend({
-        id: z.string().uuid(),
-        version: z.number().int().positive(),
-        createdAt: instant,
-        updatedAt: instant,
-    })
-    .strict()
-    .superRefine((task, context) => {
-        if (Date.parse(task.createdAt) > Date.parse(task.updatedAt)) {
-            context.addIssue({
-                code: 'custom',
-                path: ['updatedAt'],
-                message: 'Дата изменения раньше создания',
-            });
-        }
-    });
-const { parent_id: _parentId, ...legacyTaskShape } = taskSchema.shape;
-const legacyTaskSchema = z.object(legacyTaskShape).strict();
-const backupSchema = z
-    .object({
-        format: z.literal('task-planner-backup'),
-        version: z.literal(2),
-        tasks: z.array(taskSchema).max(MAX_BACKUP_TASKS),
-    })
-    .strict();
-const legacyBackupSchema = z
-    .object({
-        format: z.literal('task-planner-backup'),
-        version: z.literal(1),
-        tasks: z.array(legacyTaskSchema).max(MAX_BACKUP_TASKS),
-    })
-    .strict();
-
-export function createBackup(tasks: Task[]): string {
-    if (tasks.length > MAX_BACKUP_TASKS) {
-        throw new Error(`Слишком много задач для резервной копии (максимум ${MAX_BACKUP_TASKS}).`);
-    }
-    const text = JSON.stringify({ format: 'task-planner-backup', version: 2, tasks }, null, 2);
-    if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES) {
-        throw new Error('Резервная копия превышает 10 МБ. Уменьшите число или объём задач.');
-    }
-    taskLevels(tasks);
-    return text;
-}
+export { createBackup, MAX_BACKUP_BYTES, MAX_BACKUP_TASKS } from './backupFormat';
 
 export async function createCurrentBackup(): Promise<string> {
     return createBackup(await taskRepository.list());
@@ -107,5 +66,9 @@ export function parseBackup(text: string): Task[] {
         seen.add(task.id);
     });
     taskLevels(tasks);
-    return normalizeTaskRanges(tasks).tasks;
+    const normalized = normalizeTaskRanges(tasks).tasks;
+    // An accepted file must remain exportable after restoration. Compact JSON
+    // can fit under the input limit while our readable export exceeds it.
+    createBackup(normalized);
+    return normalized;
 }

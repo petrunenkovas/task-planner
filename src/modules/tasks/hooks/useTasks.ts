@@ -6,6 +6,7 @@ import {
     createCachedTask,
     removeCachedTask,
     replaceCachedTasks,
+    seedCachedTasksIfEmpty,
     taskQuery,
     updateCachedTask,
 } from '../data/taskQueries';
@@ -151,6 +152,19 @@ export function useTasks() {
         }
     }
 
+    async function seedDemoTasks(tasks: Task[]) {
+        dispatch({ type: 'start' });
+        try {
+            await seedCachedTasksIfEmpty(client, tasks);
+            dispatch({ type: 'success', text: 'Примеры задач загружены' });
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : 'Не удалось загрузить примеры');
+            throw error;
+        } finally {
+            dispatch({ type: 'finish' });
+        }
+    }
+
     return {
         query,
         tasks: query.data ?? EMPTY_TASKS,
@@ -165,5 +179,6 @@ export function useTasks() {
         removeTask,
         reloadTasks,
         replaceTasks,
+        seedDemoTasks,
     };
 }

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import type { Task, TaskInput } from '../src/lib/task';
 import { taskRepository } from '../src/modules/tasks/data/taskRepository';
+import { createDemoTasks } from '../src/modules/tasks/model/demoTasks';
+import { createBackup, MAX_BACKUP_BYTES } from '../src/modules/tasks/backup/backupFormat';
 
 const legacyTask = {
     id: 'b926d852-4444-41e7-b64f-8f17d86aa620',
@@ -40,6 +42,114 @@ function inputOf(task: Task): TaskInput {
     const { title, description, start, end, status, priority, isUrgent, parent_id } = task;
     return { title, description, start, end, status, priority, isUrgent, parent_id };
 }
+
+test('demo data seeds only an empty database and keeps existing tasks intact', async () => {
+    const originalIndexedDB = globalThis.indexedDB;
+    globalThis.indexedDB = new IDBFactory();
+    try {
+        const demo = createDemoTasks(new Date('2026-10-01T00:00:00Z'));
+        assert.equal(demo.length, 30);
+        assert.equal(demo.filter((item) => item.parent_id !== null).length, 6);
+        const seeded = await taskRepository.seedIfEmpty(demo);
+        assert.equal(seeded.length, 30);
+        const stored = await taskRepository.list();
+        assert.deepEqual(
+            stored.map((task) => task.id).sort(),
+            seeded.map((task) => task.id).sort(),
+        );
+        await assert.rejects(
+            taskRepository.seedIfEmpty(createDemoTasks()),
+            /только в пустой список/,
+        );
+        assert.deepEqual(
+            (await taskRepository.list()).map((task) => task.id).sort(),
+            seeded.map((task) => task.id).sort(),
+        );
+    } finally {
+        globalThis.indexedDB = originalIndexedDB;
+    }
+});
+
+test('restore rejects records that become too large after local versions are assigned', async () => {
+    const originalIndexedDB = globalThis.indexedDB;
+    const factory = new IDBFactory();
+    globalThis.indexedDB = factory;
+    try {
+        const sentinel = await taskRepository.create({
+            title: 'Сохранённая задача',
+            description: '',
+            start: '2026-09-27T10:00:00.000Z',
+            end: '2026-09-27T12:00:00.000Z',
+            status: 'new',
+            priority: 'normal',
+            isUrgent: false,
+            parent_id: null,
+        });
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = factory.open('task-planner', 4);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        await new Promise<void>((resolve, reject) => {
+            const transaction = database.transaction('metadata', 'readwrite');
+            transaction.objectStore('metadata').put({
+                key: 'versionHighWater',
+                value: Number.MAX_SAFE_INTEGER - 2,
+            });
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+        });
+        database.close();
+
+        const records: Task[] = Array.from({ length: 5_000 }, (_, index) => ({
+            ...legacyTask,
+            status: 'new',
+            parent_id: null,
+            id: `b926d852-4444-41e7-b64f-${index.toString(16).padStart(12, '0')}`,
+            version: 1,
+        }));
+        function serializedSize(descriptionLength: number, version: number) {
+            const tasks = records.map((record) => ({
+                ...record,
+                version,
+                description: 'x'.repeat(descriptionLength),
+            }));
+            return new TextEncoder().encode(
+                JSON.stringify({ format: 'task-planner-backup', version: 2, tasks }, null, 2),
+            ).byteLength;
+        }
+        let low = 0;
+        let high = 10_000;
+        while (low + 1 < high) {
+            const middle = Math.floor((low + high) / 2);
+            if (serializedSize(middle, 1) <= MAX_BACKUP_BYTES) low = middle;
+            else high = middle;
+        }
+        const tasks = records.map((record) => ({
+            ...record,
+            description: 'x'.repeat(low),
+        }));
+        assert.doesNotThrow(() => createBackup(tasks));
+        assert.ok(serializedSize(low, Number.MAX_SAFE_INTEGER - 1) > MAX_BACKUP_BYTES);
+        await assert.rejects(taskRepository.replace(tasks), /превышает 10 МБ/);
+        assert.deepEqual(await taskRepository.list(), [sentinel]);
+        const restoredDatabase = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = factory.open('task-planner', 4);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        const highWater = await new Promise<number>((resolve, reject) => {
+            const transaction = restoredDatabase.transaction('metadata', 'readonly');
+            const request = transaction.objectStore('metadata').get('versionHighWater');
+            request.onsuccess = () => resolve(request.result.value as number);
+            request.onerror = () => reject(request.error);
+        });
+        restoredDatabase.close();
+        assert.equal(highWater, Number.MAX_SAFE_INTEGER - 2);
+    } finally {
+        globalThis.indexedDB = originalIndexedDB;
+    }
+});
 
 test('IndexedDB migrates v2 and atomically creates, limits and deletes subtask branches', async () => {
     const originalIndexedDB = globalThis.indexedDB;

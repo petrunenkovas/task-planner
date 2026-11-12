@@ -77,7 +77,12 @@ export function normalizeTaskRanges(tasks: readonly Task[]): {
     const children = new Map<string, string[]>();
     for (const task of tasks) {
         if (task.parent_id !== null) {
-            children.set(task.parent_id, [...(children.get(task.parent_id) ?? []), task.id]);
+            let siblings = children.get(task.parent_id);
+            if (siblings === undefined) {
+                siblings = [];
+                children.set(task.parent_id, siblings);
+            }
+            siblings.push(task.id);
         }
     }
 

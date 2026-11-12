@@ -38,6 +38,50 @@ test('backup roundtrip preserves task metadata', () => {
     assert.deepEqual(parseBackup(backup), [task]);
 });
 
+test('import rejects a compact backup that cannot be exported after restoration', () => {
+    const roots = Array.from({ length: 1_200 }, (_, index) => ({
+        ...task,
+        id: `b926d852-4444-41e7-b64f-${index.toString(16).padStart(12, '0')}`,
+    }));
+    function makeCompact(descriptionLength: number) {
+        const filled = roots.map((record) => ({
+            ...record,
+            description: 'x'.repeat(descriptionLength),
+        }));
+        return JSON.stringify({ format: 'task-planner-backup', version: 2, tasks: filled });
+    }
+    let low = 0;
+    let high = 10_000;
+    while (low + 1 < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (new TextEncoder().encode(makeCompact(middle)).byteLength <= MAX_BACKUP_BYTES) {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    const compact = makeCompact(low);
+    assert.ok(new TextEncoder().encode(compact).byteLength <= MAX_BACKUP_BYTES);
+    assert.throws(
+        () =>
+            createBackup(
+                roots.map((record) => ({
+                    ...record,
+                    description: 'x'.repeat(low),
+                })),
+            ),
+        /превышает 10 МБ/,
+    );
+    assert.throws(() => parseBackup(compact), /превышает 10 МБ/);
+});
+
+test('export rejects records that the importer would reject', () => {
+    assert.throws(
+        () => createBackup([{ ...task, status: 'invalid' as Task['status'] }]),
+        /Не удалось создать резервную копию/,
+    );
+});
+
 test('legacy backup with new status restores roots, but planned is rejected', () => {
     const { parent_id: _parentId, ...legacyTask } = task;
     const legacy = { format: 'task-planner-backup', version: 1, tasks: [legacyTask] };

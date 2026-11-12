@@ -266,11 +266,111 @@
     font-size: 13px;
     margin-bottom: 6px;
 }
+.task-breadcrumbs a {
+    color: #174da9;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.task-page {
+    width: min(760px, 100%);
+    margin: 0 auto;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #d4dce8;
+    border-radius: 10px;
+    overflow: auto;
+}
+.task-page-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.task-page-heading-main {
+    flex: 1;
+    min-width: 0;
+}
+.task-page-heading h2 {
+    margin: 0;
+    font-size: 24px;
+}
+.task-page-title input {
+    width: 100%;
+    font-size: 24px;
+    font-weight: 600;
+}
+.task-page-title-button {
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: inherit;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+.task-page-title-button:hover {
+    color: #174da9;
+}
+.task-page-heading .delete-button {
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+.task-page-form,
+.subtask-section {
+    width: 100%;
+}
+.task-page-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 14px 0;
+    font-weight: 500;
+}
+.task-page-form input,
+.task-page-form textarea {
+    width: 100%;
+}
+.task-page-form .checkbox {
+    flex-direction: row;
+    align-items: center;
+}
+.task-page-form .checkbox input {
+    width: 18px;
+}
+.task-leave-warning {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 50;
+    width: min(420px, calc(100vw - 40px));
+    padding: 16px;
+    background: #fff;
+    border: 1px solid #d4dce8;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px #16213533;
+}
+.task-leave-warning button {
+    margin-right: 8px;
+}
+@media (max-width: 700px) {
+    .task-page {
+        padding: 16px;
+    }
+    .task-page .form-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+}
 .subtask-add {
     display: flex;
     gap: 8px;
+    width: 100%;
 }
 .subtask-add input {
+    flex: 1;
     min-width: 0;
 }
 .subtask-add button:disabled {
@@ -297,6 +397,29 @@
     color: white;
     border-radius: 7px;
     padding: 8px 12px;
+}
+.delete-task-dialog {
+    width: min(460px, calc(100vw - 24px));
+    padding: 24px;
+    border: 1px solid #d4dce8;
+    border-radius: 12px;
+    color: #202e45;
+}
+.delete-task-dialog::backdrop {
+    background: #14223999;
+}
+.delete-task-dialog h2 {
+    margin: 0 0 16px;
+    font-size: 23px;
+}
+.delete-task-dialog p {
+    line-height: 1.5;
+}
+.delete-task-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
 }
 .delete-confirm {
     background: #fff2ed;

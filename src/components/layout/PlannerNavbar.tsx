@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import type { Task } from '../../lib/task';
 import { BackupControls } from '../../modules/tasks/backup/BackupControls';
 import { WORKSPACE_ROUTES } from '../../routes';
@@ -10,7 +10,6 @@ type Props = {
     isBackupBusy: boolean;
     onImport: (tasks: Task[]) => Promise<void>;
     onError: (message: string) => void;
-    onCreate: () => void;
 };
 
 export function PlannerNavbar({
@@ -20,7 +19,6 @@ export function PlannerNavbar({
     isBackupBusy,
     onImport,
     onError,
-    onCreate,
 }: Props) {
     return (
         <header className="app-navbar">
@@ -42,13 +40,22 @@ export function PlannerNavbar({
                     </nav>
                 </div>
                 <div className="navbar-end">
-                    <span className="save-state" role="status">
-                        {saveState}
-                    </span>
+                    {saveState !== null && (
+                        <span className="save-state" role="status">
+                            {saveState}
+                        </span>
+                    )}
                     <BackupControls isBusy={isBackupBusy} onImport={onImport} onError={onError} />
-                    <button className="primary-button" onClick={onCreate} disabled={isBusy}>
+                    <Link
+                        className="primary-button"
+                        to="/tasks/new"
+                        aria-disabled={isBusy}
+                        onClick={(event) => {
+                            if (isBusy) event.preventDefault();
+                        }}
+                    >
                         + Новая задача
-                    </button>
+                    </Link>
                 </div>
             </div>
         </header>

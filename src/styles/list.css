@@ -34,8 +34,21 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.mobile-list-sort {
+    display: none;
+}
 
 @media (max-width: 700px) {
+    .mobile-list-sort {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        margin: 12px;
+    }
+    .mobile-list-sort .dropdown-select {
+        flex: 1;
+        min-width: 0;
+    }
     .task-table table,
     .task-table tbody,
     .task-table tr,

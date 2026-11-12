@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
 import type { Task } from '../src/lib/task';
 import { EMPTY_FILTERS } from '../src/lib/taskFilters';
 import { FieldChooser } from '../src/components/ui/FieldChooser';
@@ -26,14 +27,17 @@ const task: Task = {
 
 test('list renders only selected fixed-width fields and keeps edit action', () => {
     const html = renderToStaticMarkup(
-        createElement(TaskList, {
-            tasks: [task],
-            columns: ['title', 'description', 'urgent'],
-            isPending: false,
-            onEdit: () => undefined,
-            sort: null,
-            onSort: () => undefined,
-        }),
+        createElement(
+            MemoryRouter,
+            null,
+            createElement(TaskList, {
+                tasks: [task],
+                columns: ['title', 'description', 'urgent'],
+                isPending: false,
+                sort: null,
+                onSort: () => undefined,
+            }),
+        ),
     );
 
     assert.match(html, /--task-table-width:820px/);
@@ -43,7 +47,8 @@ test('list renders only selected fixed-width fields and keeps edit action', () =
         /<td data-label="Описание"><span title="Отдельное описание">Отдельное описание<\/span><\/td>/,
     );
     assert.doesNotMatch(html, /<small>|>Статус<\/span>/);
-    assert.match(html, /Изменить<\/button>/);
+    assert.match(html, /Изменить<\/a>/);
+    assert.match(html, /href="\/tasks\/b926d852-4444-41e7-b64f-8f17d86aa620"/);
 });
 
 test('filter bar keeps filter dialog trigger, search clear and view settings', () => {

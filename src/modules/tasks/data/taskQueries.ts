@@ -137,3 +137,10 @@ export async function replaceCachedTasks(client: QueryClient, tasks: Task[]): Pr
     await client.cancelQueries({ queryKey: TASKS_QUERY_KEY }).catch(() => undefined);
     client.setQueryData<Task[]>(TASKS_QUERY_KEY, restored);
 }
+
+export async function seedCachedTasksIfEmpty(client: QueryClient, tasks: Task[]): Promise<void> {
+    await client.cancelQueries({ queryKey: TASKS_QUERY_KEY });
+    const seeded = await taskRepository.seedIfEmpty(tasks);
+    await client.cancelQueries({ queryKey: TASKS_QUERY_KEY }).catch(() => undefined);
+    client.setQueryData<Task[]>(TASKS_QUERY_KEY, seeded);
+}

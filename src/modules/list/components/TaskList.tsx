@@ -6,6 +6,8 @@ import { SortableHeader, sortAriaValue } from '../../../components/ui/SortableHe
 import type { TaskSort } from '../../../lib/taskSort';
 import { TaskTreeTitle } from '../../tasks/components/TaskTreeTitle';
 import { visibleTaskTreeRows, type TaskTreeRow } from '../../tasks/model/taskTree';
+import { Select } from '../../../components/ui/Select';
+import { Link } from 'react-router';
 
 const COLUMN_WIDTHS: Record<TaskColumnId, number> = {
     title: 300,
@@ -23,13 +25,14 @@ type Props = {
     tasks: Task[];
     columns: TaskColumnId[];
     isPending: boolean;
-    onEdit: (task: Task) => void;
     sort: TaskSort | null;
     onSort: (column: TaskColumnId) => void;
 };
 
-export function TaskList({ tasks, columns, isPending, onEdit, sort, onSort }: Props) {
+export function TaskList({ tasks, columns, isPending, sort, onSort }: Props) {
     const tableWidth = columns.reduce((width, id) => width + COLUMN_WIDTHS[id], ACTION_WIDTH);
+    const mobileSortColumns =
+        sort !== null && !columns.includes(sort.column) ? [...columns, sort.column] : columns;
     const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
     const rows = useMemo(
         () => visibleTaskTreeRows(tasks, expandedIds, sort),
@@ -55,7 +58,6 @@ export function TaskList({ tasks, columns, isPending, onEdit, sort, onSort }: Pr
                         titleClassName="task-title-button"
                         isDisabled={isPending}
                         onToggle={toggleTask}
-                        onEdit={() => onEdit(task)}
                     />
                 );
             case 'description':
@@ -85,6 +87,31 @@ export function TaskList({ tasks, columns, isPending, onEdit, sort, onSort }: Pr
 
     return (
         <div className="task-table">
+            <div className="mobile-list-sort">
+                <Select
+                    label="Сортировать по колонке"
+                    placeholder="Выбрать колонку"
+                    options={mobileSortColumns.map((id) => ({
+                        value: id,
+                        label: TASK_COLUMN_LABELS[id],
+                    }))}
+                    value={sort?.column ?? ''}
+                    onChange={onSort}
+                />
+                <button
+                    type="button"
+                    className="ghost-button"
+                    disabled={sort === null}
+                    onClick={() => sort !== null && onSort(sort.column)}
+                    aria-label={
+                        sort?.direction === 'desc'
+                            ? 'Сортировать по возрастанию'
+                            : 'Сортировать по убыванию'
+                    }
+                >
+                    {sort?.direction === 'desc' ? '↑ По возрастанию' : '↓ По убыванию'}
+                </button>
+            </div>
             <table style={{ '--task-table-width': `${tableWidth}px` } as CSSProperties}>
                 <colgroup>
                     {columns.map((id) => (
@@ -119,13 +146,9 @@ export function TaskList({ tasks, columns, isPending, onEdit, sort, onSort }: Pr
                                 </td>
                             ))}
                             <td>
-                                <button
-                                    className="ghost-button"
-                                    disabled={isPending}
-                                    onClick={() => onEdit(row.task)}
-                                >
+                                <Link className="ghost-button" to={`/tasks/${row.task.id}`}>
                                     Изменить
-                                </button>
+                                </Link>
                             </td>
                         </tr>
                     ))}

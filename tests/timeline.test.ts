@@ -5,7 +5,9 @@ import { matchesFilters, EMPTY_FILTERS } from '../src/lib/taskFilters';
 import {
     addUnits,
     floorUnit,
+    MAX_GANTT_CELLS,
     SCALE_MODES,
+    timelineCellCount,
     timelineRange,
 } from '../src/modules/gantt/model/timeline';
 
@@ -28,6 +30,22 @@ function assertRange(actual: { start: Date; end: Date }, start: string, end: str
     assert.equal(actual.start.getTime(), new Date(start).getTime());
     assert.equal(actual.end.getTime(), new Date(end).getTime());
 }
+
+test('cell budget rejects extreme ranges before rendering Gantt', () => {
+    const wide = timelineRange(
+        [
+            { start: '2026-01-01T00:00:00Z', end: '2026-01-01T01:00:00Z' },
+            { start: '2126-01-01T00:00:00Z', end: '2126-01-01T01:00:00Z' },
+        ],
+        'hour',
+    );
+    assert.ok(timelineCellCount(wide, 'hour') > MAX_GANTT_CELLS);
+    const normal = timelineRange(
+        [{ start: '2026-09-01T00:00:00Z', end: '2027-09-01T00:00:00Z' }],
+        'week',
+    );
+    assert.ok(timelineCellCount(normal, 'week') <= MAX_GANTT_CELLS);
+});
 
 test('each scale adds two aligned units without counting an extra cell at an exact end', () => {
     inZone('Europe/Moscow', () => {

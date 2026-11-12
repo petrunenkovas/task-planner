@@ -55,6 +55,10 @@
     padding: 9px 12px;
 }
 .primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
     background: #245edb;
     color: white;
     border-radius: 8px;
@@ -206,6 +210,8 @@
 }
 .chart-task-title,
 .task-title-button {
+    display: inline-block;
+    text-decoration: none;
     background: transparent;
     color: #174da9;
     font-weight: 600;
@@ -285,6 +291,12 @@
 }
 .empty-state p {
     color: #50617a;
+}
+.empty-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 .empty-icon {
     font-size: 32px;

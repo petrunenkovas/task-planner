@@ -19,7 +19,12 @@ export function visibleTaskTreeRows(
     for (const task of tasks) {
         const parentId =
             task.parent_id !== null && visibleIds.has(task.parent_id) ? task.parent_id : null;
-        children.set(parentId, [...(children.get(parentId) ?? []), task]);
+        let siblings = children.get(parentId);
+        if (siblings === undefined) {
+            siblings = [];
+            children.set(parentId, siblings);
+        }
+        siblings.push(task);
     }
 
     const rows: TaskTreeRow[] = [];

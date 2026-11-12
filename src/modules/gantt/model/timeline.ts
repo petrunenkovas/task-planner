@@ -3,6 +3,7 @@ import { HOUR } from '../../../lib/task';
 export const SCALE_MODES = ['hour', 'day', 'week', 'month', 'quarter', 'year'] as const;
 export type ScaleMode = (typeof SCALE_MODES)[number];
 export type TimelineRange = { start: Date; end: Date };
+export const MAX_GANTT_CELLS = 1_000;
 export const SCALE_LABELS: Record<ScaleMode, string> = {
     hour: 'Часы',
     day: 'Дни',
@@ -89,6 +90,21 @@ export function timelineRange(
 
 export function lowerUnit(mode: ScaleMode): ScaleMode {
     return mode === 'quarter' ? 'month' : mode;
+}
+
+export function timelineCellCount(range: TimelineRange, mode: ScaleMode): number {
+    const unit = lowerUnit(mode);
+    const start = range.start;
+    const end = range.end;
+    if (unit === 'hour') return Math.ceil((end.getTime() - start.getTime()) / HOUR);
+    if (unit === 'day' || unit === 'week') {
+        const startDay = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+        const endDay = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+        return Math.ceil((endDay - startDay) / (HOUR * 24 * (unit === 'week' ? 7 : 1)));
+    }
+    const months =
+        (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth();
+    return unit === 'month' ? months : Math.ceil(months / 12);
 }
 
 export function monthYearLabel(date: Date): string {

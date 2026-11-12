@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
 import type { Task } from '../src/lib/task';
 import { TaskTreeTitle } from '../src/modules/tasks/components/TaskTreeTitle';
 import { visibleTaskTreeRows } from '../src/modules/tasks/model/taskTree';
@@ -110,31 +111,38 @@ test('five hierarchy levels retain their depth in the visible order', () => {
 
 test('tree title exposes a chevron only for expandable tasks', () => {
     const expandable = renderToStaticMarkup(
-        createElement(TaskTreeTitle, {
-            task: rootA,
-            depth: 3,
-            hasChildren: true,
-            isExpanded: false,
-            titleClassName: 'task-title-button',
-            isDisabled: false,
-            onToggle: () => undefined,
-            onEdit: () => undefined,
-        }),
+        createElement(
+            MemoryRouter,
+            null,
+            createElement(TaskTreeTitle, {
+                task: rootA,
+                depth: 3,
+                hasChildren: true,
+                isExpanded: false,
+                titleClassName: 'task-title-button',
+                isDisabled: false,
+                onToggle: () => undefined,
+            }),
+        ),
     );
     assert.match(expandable, /--task-tree-depth:3/);
     assert.match(expandable, /aria-label="Раскрыть подзадачи: Бета" aria-expanded="false"/);
+    assert.match(expandable, /href="\/tasks\/[^\"]+"/);
 
     const leaf = renderToStaticMarkup(
-        createElement(TaskTreeTitle, {
-            task: grandchild,
-            depth: 4,
-            hasChildren: false,
-            isExpanded: false,
-            titleClassName: 'task-title-button',
-            isDisabled: false,
-            onToggle: () => undefined,
-            onEdit: () => undefined,
-        }),
+        createElement(
+            MemoryRouter,
+            null,
+            createElement(TaskTreeTitle, {
+                task: grandchild,
+                depth: 4,
+                hasChildren: false,
+                isExpanded: false,
+                titleClassName: 'task-title-button',
+                isDisabled: false,
+                onToggle: () => undefined,
+            }),
+        ),
     );
     assert.doesNotMatch(leaf, /aria-expanded/);
     assert.match(leaf, /task-tree-toggle-placeholder/);

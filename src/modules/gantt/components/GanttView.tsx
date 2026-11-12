@@ -9,6 +9,7 @@ import {
     useState,
 } from 'react';
 import { Gantt, Willow, type IApi, type IColumnConfig, type ITask } from '@svar-ui/react-gantt';
+import { useLocation } from 'react-router';
 import {
     GANTT_CELL_WIDTHS,
     GANTT_COMPACT_MEDIA,
@@ -31,10 +32,18 @@ import {
     taskDatesFromDrag,
     type TimelineGeometry,
 } from '../model/adapter';
-import { scaleLabel, timelineRange, lowerUnit, type ScaleMode } from '../model/timeline';
+import {
+    MAX_GANTT_CELLS,
+    scaleLabel,
+    timelineCellCount,
+    timelineRange,
+    lowerUnit,
+    type ScaleMode,
+} from '../model/timeline';
 import { SortableHeader, sortAriaValue } from '../../../components/ui/SortableHeader';
 import type { TaskSort } from '../../../lib/taskSort';
 import { TaskTreeTitle } from '../../tasks/components/TaskTreeTitle';
+import { GanttRangeLimitState } from './GanttRangeLimitState';
 import { visibleTaskTreeRows, type TaskTreeRow } from '../../tasks/model/taskTree';
 
 function TaskBar({ data }: { data: ITask }) {
@@ -109,6 +118,7 @@ type Props = {
 export type GanttViewHandle = { captureScroll: () => void };
 
 export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(props, ref) {
+    const location = useLocation();
     const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set());
     const treeRows = useMemo(
         () => visibleTaskTreeRows(props.tasks, expandedIds, props.sort),
@@ -193,9 +203,6 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
                                     titleClassName="chart-task-title"
                                     isDisabled={latest.current.isBusy}
                                     onToggle={toggleTask}
-                                    onEdit={(initiator) =>
-                                        latest.current.onEdit(treeRow.task.id, initiator)
-                                    }
                                 />
                             );
                         },
@@ -222,6 +229,7 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
         () => timelineRange(visibleTasks, props.mode),
         [visibleTasks, props.mode],
     );
+    const isRangeTooWide = timelineCellCount(bounds, props.mode) > MAX_GANTT_CELLS;
     const cellWidth = GANTT_CELL_WIDTHS[props.mode];
     configureHourFrame(bounds.start);
     const previousUserSelect = useRef<string | null>(null);
@@ -568,7 +576,7 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
 
     const openTaskOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         const target = event.target as Element;
-        if (target.closest('.task-tree-toggle') !== null) {
+        if (target.closest('.task-tree-toggle, a[href]') !== null) {
             clickIntent.current = null;
             return;
         }
@@ -611,6 +619,10 @@ export const GanttView = forwardRef<GanttViewHandle, Props>(function GanttView(p
         ],
         [props.mode, hasTwoLevels],
     );
+
+    if (isRangeTooWide) {
+        return <GanttRangeLimitState mode={props.mode} search={location.search} />;
+    }
 
     return (
         <div
